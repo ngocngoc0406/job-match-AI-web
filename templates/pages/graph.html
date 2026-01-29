@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="tab-content shadow-sm border-0 p-3">
+    {% include 'components/tabs/graph_page.html' %}
+</div>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const tab = document.getElementById('graph');
+        if (tab) tab.classList.add('show', 'active');
+        // Trigger load
+        if (typeof initializeGraph === 'function') initializeGraph();
+    });
+</script>
+{% endblock %}

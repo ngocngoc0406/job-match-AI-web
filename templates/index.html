@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Tab Content -->
+<div class="tab-content shadow-sm border-0" id="mainTabContent">
+    {% include 'components/tabs/home.html' %}
+</div>
+
+<script>
+    // Ensure home tab is active on load
+    document.addEventListener('DOMContentLoaded', () => {
+        const tab = document.getElementById('home');
+        if (tab) tab.classList.add('show', 'active');
+    });
+</script>
+{% endblock %}

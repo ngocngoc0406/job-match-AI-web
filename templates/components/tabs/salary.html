@@ -1,0 +1,126 @@
+<div class="tab-pane fade" id="salary" role="tabpanel">
+    <div class="container py-4">
+        <div class="row justify-content-center">
+            <!-- Form Side -->
+            <div class="col-md-5">
+                <div class="card border-0 shadow-sm p-4 h-100">
+                    <h4 class="fw-bold mb-4 gradient-text">Salary Estimator</h4>
+                    <form onsubmit="handleSalaryPredict(event)">
+                        <div class="mb-3">
+                            <label class="form-label text-muted">Job Role</label>
+                            <select class="form-select form-select-lg bg-light border-0" id="salary-role">
+                                <option>Software Engineer</option>
+                                <option>Data Scientist</option>
+                                <option>Product Manager</option>
+                                <option>UX Designer</option>
+                                <option>DevOps Engineer</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label text-muted">Years of Experience</label>
+                            <input type="range" class="form-range" min="0" max="15" step="1" id="salary-exp"
+                                oninput="document.getElementById('exp-val').textContent = this.value + ' years'">
+                            <div class="text-end fw-bold text-primary" id="exp-val">2 years</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label text-muted">Location</label>
+                            <select class="form-select form-select-lg bg-light border-0" id="salary-loc">
+                                <option>Ho Chi Minh City</option>
+                                <option>Hanoi</option>
+                                <option>Da Nang</option>
+                                <option>Remote</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label text-muted">Key Skills (Select top 3)</label>
+                            <div class="d-flex flex-wrap gap-2">
+                                <input type="checkbox" class="btn-check" id="sk1" autocomplete="off">
+                                <label class="btn btn-outline-primary btn-sm rounded-pill" for="sk1">Python</label>
+
+                                <input type="checkbox" class="btn-check" id="sk2" autocomplete="off">
+                                <label class="btn btn-outline-primary btn-sm rounded-pill" for="sk2">React</label>
+
+                                <input type="checkbox" class="btn-check" id="sk3" autocomplete="off">
+                                <label class="btn btn-outline-primary btn-sm rounded-pill" for="sk3">AWS</label>
+
+                                <input type="checkbox" class="btn-check" id="sk4" autocomplete="off">
+                                <label class="btn btn-outline-primary btn-sm rounded-pill" for="sk4">AI/ML</label>
+                            </div>
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-lg shine-effect">
+                                <i class="bi bi-calculator me-2"></i>Calculate Estimate
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Result Side -->
+            <div class="col-md-7">
+                <div class="card border-0 shadow-lg h-100 bg-primary text-white position-relative overflow-hidden"
+                    style="background: var(--gradient-primary);">
+                    <div class="card-body p-5 d-flex flex-column justify-content-center align-items-center text-center">
+
+                        <div id="salary-placeholder">
+                            <i class="bi bi-cash-coin display-1 opacity-50 mb-3"></i>
+                            <h3>Ready to find out your worth?</h3>
+                            <p class="opacity-75">Fill in the details to get an AI-powered salary estimate.</p>
+                        </div>
+
+                        <div id="salary-result" class="d-none animate-fade-in w-100">
+                            <div class="mb-4">
+                                <h6 class="text-uppercase tracking-widest text-white opacity-50 mb-3 small fw-bold">
+                                    Market Valuation Report</h6>
+                                <div class="py-4 px-2">
+                                    <h1 class="premium-salary-value fw-bold mb-1">
+                                        $<span id="salary-min">1,500</span> - $<span id="salary-max">2,500</span>
+                                    </h1>
+                                    <p class="text-white opacity-75 lead">Estimated Monthly Range (USD)</p>
+                                </div>
+                            </div>
+
+                            <div class="row g-3 px-3">
+                                <div class="col-6">
+                                    <div class="market-stat-box p-3 rounded-4 text-center">
+                                        <div class="text-white-50 small mb-1">Market Position</div>
+                                        <div class="h4 fw-bold text-white mb-0">Top 15%</div>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="market-stat-box p-3 rounded-4 text-center">
+                                        <div class="text-white-50 small mb-1">Demand Score</div>
+                                        <div class="h4 fw-bold text-warning mb-0"><i class="bi bi-lightning-fill"></i>
+                                            High</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mt-5 pt-3">
+                                <button
+                                    class="btn btn-light btn-lg text-primary w-100 fw-bold py-3 rounded-pill shadow hover-scale transition-all"
+                                    onclick="window.location.href='/search'">
+                                    <i class="bi bi-briefcase-fill me-2"></i>Find High-Value Openings
+                                </button>
+                                <p class="text-white-50 small mt-3 italic">* Estimates based on current local market
+                                    data</p>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- Deco circles -->
+                    <div class="position-absolute rounded-circle bg-white opacity-05"
+                        style="width: 300px; height: 300px; top: -150px; right: -150px; pointer-events: none;"></div>
+                    <div class="position-absolute rounded-circle bg-white"
+                        style="width: 150px; height: 150px; bottom: 30px; left: -70px; opacity: 0.02; pointer-events: none;">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

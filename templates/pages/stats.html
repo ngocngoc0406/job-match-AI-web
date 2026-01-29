@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="tab-content shadow-sm border-0 p-3">
+    {% include 'components/tabs/stats.html' %}
+</div>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const tab = document.getElementById('statistics');
+        if (tab) tab.classList.add('show', 'active');
+        // Trigger load
+        if (typeof loadStatistics === 'function') loadStatistics();
+    });
+</script>
+{% endblock %}

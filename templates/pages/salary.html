@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="tab-content shadow-sm border-0 p-3">
+    {% include 'components/tabs/salary.html' %}
+</div>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const tab = document.getElementById('salary');
+        if (tab) tab.classList.add('show', 'active');
+        // Clean up visual artifact - remove tab-pane class which hides it if we rely on JS
+        // But base logic expects tabs.
+        // We really should just strip the 'tab-pane' class from the includes if we go full MPA.
+        // For now, forcibly showing it works.
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,12 @@
+Flask
+pandas
+numpy
+scikit-learn
+networkx
+rdflib
+openpyxl
+PyMuPDF
+pdfplumber
+pytesseract
+Pillow
+Werkzeug

@@ -1,0 +1,169 @@
+<!-- CV Builder Tab -->
+<div class="tab-pane fade" id="cv-builder" role="tabpanel">
+    <div class="row h-100">
+        <!-- Editor Column -->
+        <div class="col-md-5 h-100 overflow-auto border-end p-0 bg-white">
+            <div class="p-4">
+                <h4 class="fw-bold mb-4 text-primary">CV Editor</h4>
+
+                <div class="accordion" id="cvAccordion">
+                    <!-- Personal Info -->
+                    <div class="accordion-item border-0 mb-3 shadow-sm rounded">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button fw-medium" type="button" data-bs-toggle="collapse"
+                                data-bs-target="#accPersonal">
+                                <i class="bi bi-person-lines-fill me-2 text-secondary"></i> Personal Info
+                            </button>
+                        </h2>
+                        <div id="accPersonal" class="accordion-collapse collapse show" data-bs-parent="#cvAccordion">
+                            <div class="accordion-body bg-light">
+                                <div class="mb-3">
+                                    <label class="form-label small text-muted">Full Name</label>
+                                    <input type="text" class="form-control" id="cvName" oninput="updateCV()"
+                                        value="Nguyen Van A">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label small text-muted">Job Title</label>
+                                    <input type="text" class="form-control" id="cvTitle" oninput="updateCV()"
+                                        value="Software Engineer">
+                                </div>
+                                <div class="row">
+                                    <div class="col-6 mb-3">
+                                        <label class="form-label small text-muted">Email</label>
+                                        <input type="email" class="form-control" id="cvEmail" oninput="updateCV()"
+                                            value="nguyenvan@email.com">
+                                    </div>
+                                    <div class="col-6 mb-3">
+                                        <label class="form-label small text-muted">Phone</label>
+                                        <input type="text" class="form-control" id="cvPhone" oninput="updateCV()"
+                                            value="0901234567">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Summary -->
+                    <div class="accordion-item border-0 mb-3 shadow-sm rounded">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed fw-medium" type="button" data-bs-toggle="collapse"
+                                data-bs-target="#accSummary">
+                                <i class="bi bi-text-paragraph me-2 text-secondary"></i> Summary
+                            </button>
+                        </h2>
+                        <div id="accSummary" class="accordion-collapse collapse" data-bs-parent="#cvAccordion">
+                            <div class="accordion-body bg-light">
+                                <textarea class="form-control" id="cvSummary" rows="4"
+                                    oninput="updateCV()">Experienced software engineer with a strong background in AI and data analysis. Passionate about building scalable web applications.</textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Experience -->
+                    <div class="accordion-item border-0 mb-3 shadow-sm rounded">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed fw-medium" type="button" data-bs-toggle="collapse"
+                                data-bs-target="#accExp">
+                                <i class="bi bi-briefcase me-2 text-secondary"></i> Experience
+                            </button>
+                        </h2>
+                        <div id="accExp" class="accordion-collapse collapse" data-bs-parent="#cvAccordion">
+                            <div class="accordion-body bg-light">
+                                <div class="mb-2">
+                                    <label class="form-label small text-muted">Company Name</label>
+                                    <input type="text" class="form-control mb-2" id="cvExpCompany" oninput="updateCV()"
+                                        value="Tech Solutions Inc.">
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label small text-muted">Position</label>
+                                    <input type="text" class="form-control mb-2" id="cvExpRole" oninput="updateCV()"
+                                        value="Senior Developer">
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label small text-muted">Description</label>
+                                    <textarea class="form-control" id="cvExpDesc" rows="3"
+                                        oninput="updateCV()">Led a team of 5 developers. Implemented CI/CD pipelines.</textarea>
+                                </div>
+                                <button class="btn btn-sm btn-outline-primary w-100"
+                                    onclick="showToast('Feature', 'Multi-entry exp coming soon')"><i
+                                        class="bi bi-plus"></i> Add More</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Education -->
+                    <div class="accordion-item border-0 mb-3 shadow-sm rounded">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed fw-medium" type="button" data-bs-toggle="collapse"
+                                data-bs-target="#accEdu">
+                                <i class="bi bi-mortarboard me-2 text-secondary"></i> Education
+                            </button>
+                        </h2>
+                        <div id="accEdu" class="accordion-collapse collapse" data-bs-parent="#cvAccordion">
+                            <div class="accordion-body bg-light">
+                                <label class="form-label small text-muted">University</label>
+                                <input type="text" class="form-control mb-2" id="cvEduSchool" oninput="updateCV()"
+                                    value="Ho Chi Minh University of Technology">
+
+                                <label class="form-label small text-muted">Major</label>
+                                <input type="text" class="form-control" id="cvEduMajor" oninput="updateCV()"
+                                    value="Computer Science">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-grid gap-2 mt-4">
+                    <button class="btn btn-primary" onclick="window.print()">
+                        <i class="bi bi-printer me-2"></i> Print to PDF
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Preview Column -->
+        <div class="col-md-7 h-100 bg-secondary bg-opacity-10 overflow-auto p-4 d-flex justify-content-center">
+            <div class="cv-preview-container shadow-lg bg-white" id="cvPreview">
+                <!-- A4 Page Content -->
+                <div class="cv-header bg-primary text-white p-4">
+                    <h2 class="fw-bold mb-1" id="prevName">Nguyen Van A</h2>
+                    <p class="lead mb-0 opacity-75" id="prevTitle">Software Engineer</p>
+                </div>
+                <div class="cv-body p-4">
+                    <div class="row mb-4">
+                        <div class="col-md-12">
+                            <div class="d-flex text-muted small mb-3">
+                                <span class="me-3"><i class="bi bi-envelope me-1"></i> <span
+                                        id="prevEmail">nguyenvan@email.com</span></span>
+                                <span><i class="bi bi-phone me-1"></i> <span id="prevPhone">0901234567</span></span>
+                            </div>
+                            <hr>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <h5 class="fw-bold text-uppercase text-primary border-bottom pb-2 mb-3">Summary</h5>
+                        <p id="prevSummary" class="text-secondary">Experienced software engineer...</p>
+                    </div>
+
+                    <div class="mb-4">
+                        <h5 class="fw-bold text-uppercase text-primary border-bottom pb-2 mb-3">Experience</h5>
+                        <div class="mb-3">
+                            <h6 class="fw-bold mb-0" id="prevExpRole">Senior Developer</h6>
+                            <div class="small text-muted mb-2" id="prevExpCompany">Tech Solutions Inc.</div>
+                            <p class="small text-secondary" id="prevExpDesc">Led a team of...</p>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <h5 class="fw-bold text-uppercase text-primary border-bottom pb-2 mb-3">Education</h5>
+                        <div>
+                            <h6 class="fw-bold mb-0" id="prevEduSchool">University</h6>
+                            <div class="small text-muted" id="prevEduMajor">Major</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

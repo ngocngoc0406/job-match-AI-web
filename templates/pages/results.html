@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="tab-content shadow-sm border-0 p-3">
+    {% include 'components/tabs/results.html' %}
+</div>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const tab = document.getElementById('results');
+        if (tab) tab.classList.add('show', 'active');
+        // Trigger load
+        if (typeof loadResults === 'function') loadResults();
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,70 @@
+<div class="tab-pane fade" id="interview" role="tabpanel">
+    <div class="interview-container h-100 d-flex flex-column">
+        <div class="row h-100 g-0">
+            <!-- Sidebar: Context & Controls -->
+            <div class="col-md-3 border-end d-none d-md-flex flex-column bg-light">
+                <div class="p-3 border-bottom">
+                    <h5 class="fw-bold mb-0"><i class="bi bi-robot me-2 text-primary"></i>AI Interviewer</h5>
+                    <small class="text-muted">Job Fit Assessment</small>
+                </div>
+
+                <div class="p-3 flex-grow-1 overflow-auto">
+                    <div class="card mb-3 shadow-sm border-0">
+                        <div class="card-body p-3">
+                            <small class="text-uppercase text-muted fw-bold d-block mb-2"
+                                style="font-size: 0.7rem;">Current Role</small>
+                            <h6 class="fw-bold mb-1" id="interview-role-display">Software Engineer</h6>
+                            <span class="badge w-100 mt-2" id="interview-status-badge"
+                                style="background: var(--gradient-primary);">Ready to Start</span>
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-outline-danger btn-sm" onclick="endInterview()">
+                            <i class="bi bi-stop-circle me-2"></i>End Session
+                        </button>
+                        <button class="btn btn-outline-secondary btn-sm" onclick="downloadTranscript()">
+                            <i class="bi bi-download me-2"></i>Save Transcript
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Chat Area -->
+            <div class="col-md-9 d-flex flex-column h-100 relative">
+
+                <!-- Chat Header (Mobile only) -->
+                <div
+                    class="p-2 border-bottom d-md-none bg-light d-flex align-items-center justify-content-between my-2">
+                    <span class="fw-bold"><i class="bi bi-robot me-2"></i>AI Interviewer</span>
+                    <button class="btn btn-sm btn-danger" onclick="endInterview()">End</button>
+                </div>
+
+                <!-- Messages Area -->
+                <div class="chat-messages flex-grow-1 p-4 overflow-auto" id="chat-messages">
+                    <div class="text-center text-muted my-5">
+                        <div class="mb-3">
+                            <i class="bi bi-chat-quote display-4 text-primary opacity-50"></i>
+                        </div>
+                        <h5>Ready for your mock interview?</h5>
+                        <p>The AI will ask you questions based on your CV and the target job description.</p>
+                        <button class="btn btn-primary px-4 py-2 mt-2 shine-effect" onclick="startInterview()">
+                            <i class="bi bi-play-circle me-2"></i>Start Interview
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Input Area -->
+                <div class="chat-input-area p-3 border-top bg-white">
+                    <form onsubmit="handleChatSubmit(event)" class="d-flex gap-2">
+                        <input type="text" class="form-control form-control-lg bg-light border-0" id="chat-input"
+                            placeholder="Type your answer..." disabled autocomplete="off">
+                        <button type="submit" class="btn btn-primary btn-lg px-4" id="chat-send-btn" disabled>
+                            <i class="bi bi-send-fill"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

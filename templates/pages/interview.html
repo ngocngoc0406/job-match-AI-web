@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="tab-content shadow-sm border-0 p-3">
+    {% include 'components/tabs/interview.html' %}
+</div>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const tab = document.getElementById('interview');
+        if (tab) tab.classList.add('show', 'active');
+    });
+</script>
+{% endblock %}

@@ -107,13 +107,17 @@
                         id="search-results-count">(0 results)</span></h5>
                 <div class="dropdown">
                     <button class="btn btn-light btn-sm dropdown-toggle border-0" type="button"
-                        data-bs-toggle="dropdown">
+                        data-bs-toggle="dropdown" id="sort-dropdown-btn">
                         Sort by: Newest
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end border-0 shadow-sm">
-                        <li><a class="dropdown-item active" href="#">Newest</a></li>
-                        <li><a class="dropdown-item" href="#">Relevance</a></li>
-                        <li><a class="dropdown-item" href="#">Salary (High to Low)</a></li>
+                        <li><a class="dropdown-item active" href="#" data-sort="newest"
+                                onclick="changeSortOrder('newest', 'Newest', this)">Newest</a></li>
+                        <li><a class="dropdown-item" href="#" data-sort="relevance"
+                                onclick="changeSortOrder('relevance', 'Relevance', this)">Relevance</a></li>
+                        <li><a class="dropdown-item" href="#" data-sort="salary"
+                                onclick="changeSortOrder('salary', 'Salary (High to Low)', this)">Salary (High to
+                                Low)</a></li>
                     </ul>
                 </div>
             </div>

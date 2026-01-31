@@ -937,6 +937,25 @@ async function autoFillSalaryFromCV() {
 
 let currentSearchOffset = 0;
 const SEARCH_LIMIT = 20;
+let currentSortOrder = 'newest';  // Track current sort order
+
+// Function to change sort order and refresh search
+function changeSortOrder(sortValue, displayText, element) {
+    currentSortOrder = sortValue;
+
+    // Update button text
+    const btn = document.getElementById('sort-dropdown-btn');
+    if (btn) btn.textContent = `Sort by: ${displayText}`;
+
+    // Update active state in dropdown
+    document.querySelectorAll('.dropdown-item[data-sort]').forEach(item => {
+        item.classList.remove('active');
+    });
+    if (element) element.classList.add('active');
+
+    // Trigger new search
+    handleJobSearch();
+}
 
 async function handleJobSearch() {
     currentSearchOffset = 0; // Reset offset on new search
@@ -974,7 +993,7 @@ async function handleJobSearch() {
     resultsDiv.innerHTML = '<div class="col-12 text-center py-5"><div class="spinner-border text-primary"></div><p class="mt-2 text-muted">Searching the database...</p></div>';
 
     try {
-        const url = `/api/search?q=${encodeURIComponent(query)}&city=${encodeURIComponent(city)}&offset=0&limit=${SEARCH_LIMIT}&exp=${expParam}&type=${typeParam}&min_salary=${minSalary}`;
+        const url = `/api/search?q=${encodeURIComponent(query)}&city=${encodeURIComponent(city)}&offset=0&limit=${SEARCH_LIMIT}&exp=${expParam}&type=${typeParam}&min_salary=${minSalary}&sort=${currentSortOrder}`;
         const response = await fetch(url);
         const data = await response.json();
 
@@ -1032,7 +1051,7 @@ async function loadMoreJobs() {
 
         const minSalary = document.getElementById('search-salary-range')?.value || 0;
 
-        const url = `/api/search?q=${encodeURIComponent(query)}&city=${encodeURIComponent(city)}&offset=${currentSearchOffset}&limit=${SEARCH_LIMIT}&exp=${expParam}&type=${typeParam}&min_salary=${minSalary}`;
+        const url = `/api/search?q=${encodeURIComponent(query)}&city=${encodeURIComponent(city)}&offset=${currentSearchOffset}&limit=${SEARCH_LIMIT}&exp=${expParam}&type=${typeParam}&min_salary=${minSalary}&sort=${currentSortOrder}`;
         const response = await fetch(url);
         const data = await response.json();
 

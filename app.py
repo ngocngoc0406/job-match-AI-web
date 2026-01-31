@@ -576,7 +576,7 @@ def salary_estimate():
 
 @app.route('/api/search')
 def api_search():
-    """Real-time job search with advanced filtering"""
+    """Real-time job search with advanced filtering and sorting"""
     query = request.args.get('q', '').lower()
     city = request.args.get('city', 'All Locations').lower()
     offset = int(request.args.get('offset', 0))
@@ -584,6 +584,7 @@ def api_search():
     exp_levels = request.args.get('exp', '') # e.g. "intern,junior,senior,lead"
     job_types = request.args.get('type', '') # e.g. "full,part,remote"
     min_salary = int(request.args.get('min_salary', 0))
+    sort_by = request.args.get('sort', 'newest')  # newest, relevance, salary
     
     if state['df'] is None:
         return jsonify({'jobs': [], 'has_more': False, 'total': 0})
@@ -666,6 +667,31 @@ def api_search():
             return val >= min_salary
         
         filtered_df = filtered_df[filtered_df['salary'].apply(check_salary)]
+
+    # 6. Sorting
+    if sort_by == 'newest':
+        # Sort by id descending (higher id = newer job)
+        if 'id' in filtered_df.columns:
+            filtered_df = filtered_df.sort_values('id', ascending=False)
+        else:
+            filtered_df = filtered_df.iloc[::-1]  # Reverse order as fallback
+    elif sort_by == 'salary':
+        # Sort by salary (high to low)
+        def extract_max_salary(s_str):
+            import re
+            s_str = str(s_str).lower()
+            if 'thỏa thuận' in s_str: return 0
+            nums = re.findall(r'(\d+)', s_str.replace('.', '').replace(',', ''))
+            if not nums: return 0
+            is_usd = 'usd' in s_str or '$' in s_str
+            val = float(nums[-1])
+            if not is_usd: val = val / 25
+            return val
+        filtered_df = filtered_df.copy()
+        filtered_df['_sort_salary'] = filtered_df['salary'].apply(extract_max_salary)
+        filtered_df = filtered_df.sort_values('_sort_salary', ascending=False)
+        filtered_df = filtered_df.drop(columns=['_sort_salary'])
+    # else: relevance - keep original order
 
     total_count = len(filtered_df)
     results = filtered_df.iloc[offset : offset + limit]

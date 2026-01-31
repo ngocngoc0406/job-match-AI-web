@@ -8,6 +8,11 @@
     document.addEventListener('DOMContentLoaded', () => {
         const tab = document.getElementById('search');
         if (tab) tab.classList.add('show', 'active');
+
+        // Trigger initial search to load all jobs
+        if (typeof handleJobSearch === 'function') {
+            handleJobSearch();
+        }
     });
 </script>
 {% endblock %}

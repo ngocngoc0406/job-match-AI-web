@@ -1,46 +1,130 @@
 <!-- Search Tab -->
 <div class="tab-pane fade" id="search" role="tabpanel">
-    <div class="py-4 text-center bg-light rounded-3 mb-4">
-        <h3 class="fw-bold">Find Your Next Opportunity</h3>
-        <div class="row justify-content-center mt-3">
-            <div class="col-md-8">
-                <div class="input-group input-group-lg shadow-sm">
-                    <span class="input-group-text bg-white border-0"><i class="bi bi-search"></i></span>
-                    <input type="text" class="form-control border-0" placeholder="Job title, keywords, or company">
-                    <button class="btn btn-primary px-4">Search</button>
-                </div>
+    <!-- Minimal Search Bar (No Background) -->
+    <div class="search-bar-container mb-4 p-0">
+        <div class="d-flex justify-content-center">
+            <div
+                class="search-input-wrapper bg-card rounded-pill border border-color shadow-sm d-flex align-items-center w-100">
+                <i class="bi bi-search ms-3 me-2 text-muted"></i>
+                <input type="text" class="form-control border-0 bg-transparent flex-grow-1" id="job-search-input"
+                    placeholder="Search AI jobs by title, skills, or location...">
+                <button class="btn btn-primary rounded-pill me-1 fw-bold" onclick="handleJobSearch()">Search</button>
             </div>
+        </div>
+
+        <!-- Subtle Icons for Balance -->
+        <div class="position-absolute top-0 end-0 p-4 opacity-10"><i class="bi bi-stars text-white fs-1"></i></div>
+        <div class="position-absolute bottom-0 start-0 p-4 opacity-10"><i class="bi bi-briefcase text-white fs-1"></i>
         </div>
     </div>
 
-    <div class="row">
-        <div class="col-md-3">
-            <h5 class="fw-bold mb-3">Filters</h5>
-            <div class="mb-3">
-                <label class="form-label fw-medium">Location</label>
-                <select class="form-select">
-                    <option>All Locations</option>
-                    <option>Remote</option>
-                    <option>Ho Chi Minh</option>
-                    <option>Hanoi</option>
-                </select>
-            </div>
-            <div class="mb-3">
-                <label class="form-label fw-medium">Job Type</label>
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox" checked>
-                    <label class="form-check-label">Full-time</label>
-                </div>
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox">
-                    <label class="form-check-label">Part-time</label>
+    <div class="row g-4">
+        <!-- Sidebar Filters -->
+        <div class="col-lg-3">
+            <div class="card border-0 shadow-sm rounded-4 sticky-top" style="top: 100px;">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h5 class="fw-bold mb-0">Filters</h5>
+                        <button class="btn btn-link text-primary p-0 text-decoration-none small fw-bold"
+                            onclick="resetSearchFilters()">Reset</button>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label text-muted small fw-bold text-uppercase">Location</label>
+                        <select class="form-select border-0 bg-light rounded-3" id="search-city-filter"
+                            onchange="handleJobSearch()">
+                            <option>All Locations</option>
+                            <option>Remote</option>
+                            <option>Ho Chi Minh City</option>
+                            <option>Da Nang</option>
+                            <option>Hanoi</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label text-muted small fw-bold text-uppercase">Experience Level</label>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" checked id="exp-intern">
+                            <label class="form-check-label small" for="exp-intern">Intern / Fresher</label>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" checked id="exp-junior">
+                            <label class="form-check-label small" for="exp-junior">Junior (1-3 yrs)</label>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" checked id="exp-senior">
+                            <label class="form-check-label small" for="exp-senior">Senior / Expert</label>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" checked id="exp-lead">
+                            <label class="form-check-label small" for="exp-lead">Lead / Manager</label>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label text-muted small fw-bold text-uppercase">Job Type</label>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" checked id="type-full">
+                            <label class="form-check-label small" for="type-full">Full-time</label>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" checked id="type-part">
+                            <label class="form-check-label small" for="type-part">Part-time</label>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" checked id="type-remote">
+                            <label class="form-check-label small" for="type-remote">Remote</label>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" checked id="type-contract">
+                            <label class="form-check-label small" for="type-contract">Contract / Freelance</label>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label text-muted small fw-bold text-uppercase">Salary Range</label>
+                        <input type="range" class="form-range" min="0" max="10000" step="500" value="0"
+                            id="search-salary-range"
+                            oninput="document.getElementById('search-salary-val').textContent = '$' + (this.value/1000) + 'k+'">
+                        <div class="d-flex justify-content-between small text-muted">
+                            <span id="search-salary-val">$0k+</span>
+                            <span>$10k+</span>
+                        </div>
+                    </div>
+
+                    <div class="d-grid mt-4">
+                        <button class="btn btn-primary rounded-pill fw-bold" onclick="handleJobSearch()">Apply
+                            Filters</button>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-9">
-            <h5 class="fw-bold mb-3">Latest Openings</h5>
-            <div id="searchResults">
-                <!-- Populated by JS -->
+
+        <!-- Job Listings -->
+        <div class="col-lg-9">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h5 class="fw-bold mb-0">Latest Opportunities <span class="text-muted small fw-normal ms-2"
+                        id="search-results-count">(0 results)</span></h5>
+                <div class="dropdown">
+                    <button class="btn btn-light btn-sm dropdown-toggle border-0" type="button"
+                        data-bs-toggle="dropdown">
+                        Sort by: Newest
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end border-0 shadow-sm">
+                        <li><a class="dropdown-item active" href="#">Newest</a></li>
+                        <li><a class="dropdown-item" href="#">Relevance</a></li>
+                        <li><a class="dropdown-item" href="#">Salary (High to Low)</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div id="searchResults" class="row g-4">
+                <!-- Populated by JS with premium cards -->
+            </div>
+
+            <div class="text-center mt-5" id="load-more-container">
+                <button class="btn btn-light rounded-pill px-4 py-2 border" id="btn-load-more"
+                    onclick="loadMoreJobs()">Load More Jobs</button>
             </div>
         </div>
     </div>

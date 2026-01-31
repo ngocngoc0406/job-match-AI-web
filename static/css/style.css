@@ -33,10 +33,10 @@
 [data-theme="dark"] {
     --bg-body: #0f172a;
     --bg-card: #1e293b;
-    --text-color: #f1f5f9;
-    --text-muted: #94a3b8;
-    --border-color: rgba(255, 255, 255, 0.1);
-    --glass-bg: rgba(30, 41, 59, 0.9);
+    --text-color: #ffffff;
+    --text-muted: #cbd5e1;
+    --border-color: rgba(255, 255, 255, 0.15);
+    --glass-bg: rgba(15, 23, 42, 0.85);
     --light-bg: #1e293b;
     /* Re-map light bg to dark for some utility classes */
     --background-color: var(--bg-body);
@@ -163,6 +163,10 @@ body {
     opacity: 1;
     background: rgba(79, 70, 229, 0.05);
     transform: translateY(-1px);
+}
+
+[data-theme="dark"] .nav-link {
+    opacity: 1;
 }
 
 .nav-link.active {
@@ -529,4 +533,83 @@ body {
     100% {
         box-shadow: 9999px 0 0 -5px;
     }
+}
+
+/* Search Specific */
+.search-bar-container {
+    width: 100%;
+}
+
+.search-input-wrapper {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color) !important;
+    padding: 0.15rem 0.5rem !important;
+    height: 42px;
+    /* Slightly more height for better clickability on white bg */
+}
+
+.search-input-wrapper input {
+    font-size: 0.95rem !important;
+    height: 100% !important;
+    color: var(--text-color) !important;
+}
+
+.search-input-wrapper input::placeholder {
+    font-size: 0.9rem;
+    color: var(--text-muted) !important;
+}
+
+.search-input-wrapper .bi-search {
+    font-size: 1rem !important;
+    color: var(--text-muted) !important;
+}
+
+.search-input-wrapper .btn {
+    padding: 0.3rem 1.5rem !important;
+    font-size: 0.85rem !important;
+    height: 32px !important;
+    display: flex;
+    align-items: center;
+}
+
+.search-input-wrapper:focus-within {
+    border-color: var(--primary-color) !important;
+    box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1) !important;
+}
+
+.job-search-card {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid transparent !important;
+}
+
+.job-search-card:hover {
+    border-color: var(--primary-color) !important;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08) !important;
+}
+
+[data-theme="dark"] .search-input-wrapper {
+    background: rgba(15, 23, 42, 0.6) !important;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .search-input-wrapper input {
+    color: white !important;
+}
+
+[data-theme="dark"] .bg-light {
+    background-color: rgba(255, 255, 255, 0.03) !important;
+}
+
+[data-theme="dark"] .form-range::-webkit-slider-runnable-track {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.search-hero .fw-800 {
+    font-weight: 800;
+}
+
+.sticky-top {
+    z-index: 100 !important;
 }

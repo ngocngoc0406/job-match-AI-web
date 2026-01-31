@@ -340,26 +340,42 @@ function setupSearch() {
     // Populate some initial results
     const resultsDiv = document.getElementById('searchResults');
     const jobs = [
-        { title: "Frontend Developer", company: "WebFlow", loc: "San Francisco", type: "Full-time" },
-        { title: "Backend Engineer", company: "Amazon", loc: "Seattle", type: "Full-time" },
-        { title: "UX Designer", company: "Figma", loc: "Remote", type: "Contract" },
-        { title: "Product Manager", company: "Notion", loc: "New York", type: "Full-time" }
+        { title: "Senior AI Engineer", company: "OpenAI", loc: "San Francisco", type: "Full-time", salary: "$180k - $250k", logo: "https://api.dicebear.com/7.x/initials/svg?seed=OA", tags: ["LLM", "Python"] },
+        { title: "Data Scientist", company: "NVIDIA", loc: "Santa Clara", type: "Remote", salary: "$160k - $220k", logo: "https://api.dicebear.com/7.x/initials/svg?seed=NV", tags: ["PyTorch", "CUDA"] },
+        { title: "Machine Learning Ops", company: "Tesla", loc: "Austin", type: "Full-time", salary: "$150k - $210k", logo: "https://api.dicebear.com/7.x/initials/svg?seed=TS", tags: ["Kubernetes", "MLFlow"] },
+        { title: "Product Manager (AI)", company: "Google", loc: "MTV", type: "Hybrid", salary: "$170k - $240k", logo: "https://api.dicebear.com/7.x/initials/svg?seed=GO", tags: ["Product", "Strategy"] }
     ];
 
     if (resultsDiv) {
         resultsDiv.innerHTML = jobs.map(job => `
-            <div class="card mb-3 border-0 shadow-sm">
-                <div class="card-body d-flex justify-content-between align-items-center">
-                    <div>
-                        <h5 class="card-title text-primary fw-bold mb-1">${job.title}</h5>
-                        <p class="card-text text-muted mb-0">
-                            <i class="bi bi-building me-1"></i> ${job.company} 
-                            <span class="mx-2">•</span> 
-                            <i class="bi bi-geo-alt me-1"></i> ${job.loc}
-                        </p>
-                        <span class="badge bg-light text-dark mt-2">${job.type}</span>
+            <div class="col-12">
+                <div class="card job-search-card border-0 shadow-sm rounded-4 overflow-hidden transition-hover">
+                    <div class="card-body p-4">
+                        <div class="d-flex align-items-start gap-4">
+                            <div class="company-logo rounded-4 p-2 bg-light d-flex align-items-center justify-content-center" style="width: 64px; height: 64px; flex-shrink: 0;">
+                                <img src="${job.logo}" class="img-fluid rounded-3" alt="logo">
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="d-flex justify-content-between align-items-start mb-1">
+                                    <h5 class="fw-bold mb-0">${job.title}</h5>
+                                    <span class="text-primary fw-bold">${job.salary}</span>
+                                </div>
+                                <div class="text-muted small mb-3">
+                                    <span class="fw-bold text-dark">${job.company}</span>
+                                    <span class="mx-2">•</span>
+                                    <i class="bi bi-geo-alt me-1"></i> ${job.loc}
+                                    <span class="mx-2">•</span>
+                                    <i class="bi bi-clock me-1"></i> ${job.type}
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="d-flex gap-2">
+                                        ${job.tags.map(t => `<span class="badge bg-light text-dark border-0 rounded-pill px-3 py-2 small">${t}</span>`).join('')}
+                                    </div>
+                                    <button class="btn btn-primary rounded-pill px-4 fw-bold">Apply Now</button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <button class="btn btn-primary">Apply</button>
                 </div>
             </div>
         `).join('');
@@ -637,16 +653,57 @@ let interviewState = {
 };
 
 async function startInterview() {
+    // 1. Fetch user profile for context
+    try {
+        const response = await fetch('/api/user-profile');
+        const profile = await response.json();
+
+        if (profile.active) {
+            document.getElementById('interview-role-display').textContent = profile.role;
+            const statusBadge = document.getElementById('interview-status-badge');
+            const statusLink = document.getElementById('interview-status-link');
+
+            if (statusBadge) statusBadge.classList.remove('d-none');
+            if (statusLink) statusLink.classList.add('d-none');
+
+            // Update Job Fit Stats
+            const jobFitBox = document.getElementById('job-fit-stats');
+            if (jobFitBox) {
+                jobFitBox.style.display = 'block';
+                document.getElementById('target-job-name').textContent = profile.target_job;
+                document.getElementById('target-match-score').textContent = profile.match_score + '%';
+                document.getElementById('target-match-progress').style.width = profile.match_score + '%';
+            }
+        } else {
+            showToast('Warning', 'Please upload a CV first for a better interview experience.', 'warning');
+        }
+    } catch (e) {
+        console.error("Failed to fetch profile", e);
+    }
+
     const messagesDiv = document.getElementById('chat-messages');
     messagesDiv.innerHTML = ''; // Clear start prompt
 
     interviewState.active = true;
     toggleChatControls(true);
 
-    // Initial Greeting
-    addChatMessage('ai', 'Hello! I am your AI interviewer. Based on your CV, I see you are applying for a software engineering role. Let\'s start with a simple question: Can you introduce yourself and highlight your key technical skills?');
-
-    // In a real app, we would call /interview/start here
+    // Initial Greeting from Backend
+    const typingId = showTypingIndicator();
+    try {
+        const response = await fetch('/interview/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: 'init_interview', history: [] })
+        });
+        const data = await response.json();
+        removeTypingIndicator(typingId);
+        if (data.reply) {
+            addChatMessage('ai', data.reply);
+        }
+    } catch (e) {
+        removeTypingIndicator(typingId);
+        addChatMessage('ai', "Hello! Let's start the interview. Can you introduce yourself?");
+    }
 }
 
 function toggleChatControls(active) {
@@ -767,6 +824,15 @@ async function handleSalaryPredict(e) {
     const exp = expInput.value;
     const location = locInput ? locInput.value : '';
 
+    // Collect checked skills
+    const skills = [];
+    ['sk1', 'sk2', 'sk3', 'sk4'].forEach(id => {
+        const cb = document.getElementById(id);
+        if (cb && cb.checked) {
+            skills.push(cb.nextElementSibling.textContent);
+        }
+    });
+
     // UI Loading State
     const originalBtnText = btn.innerHTML;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Calculating...';
@@ -776,7 +842,7 @@ async function handleSalaryPredict(e) {
         const response = await fetch('/api/salary-estimate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ role, exp, location })
+            body: JSON.stringify({ role, exp, location, skills })
         });
 
         const data = await response.json();
@@ -818,3 +884,235 @@ function animateValue(obj, start, end, duration) {
     };
     window.requestAnimationFrame(step);
 }
+
+async function autoFillSalaryFromCV() {
+    try {
+        const response = await fetch('/api/user-profile');
+        const profile = await response.json();
+
+        if (profile.active) {
+            // Role matching (simple select value match)
+            const roleSelect = document.getElementById('salary-role');
+            if (roleSelect) {
+                // Try to find matching option, else add it
+                let found = false;
+                for (let i = 0; i < roleSelect.options.length; i++) {
+                    if (roleSelect.options[i].text.toLowerCase().includes(profile.role.toLowerCase())) {
+                        roleSelect.selectedIndex = i;
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    const opt = document.createElement('option');
+                    opt.text = profile.role;
+                    roleSelect.add(opt);
+                    roleSelect.selectedIndex = roleSelect.options.length - 1;
+                }
+            }
+
+            // Location
+            const locSelect = document.getElementById('salary-loc');
+            if (locSelect && profile.city) {
+                for (let i = 0; i < locSelect.options.length; i++) {
+                    if (locSelect.options[i].text.toLowerCase().includes(profile.city.toLowerCase())) {
+                        locSelect.selectedIndex = i;
+                        break;
+                    }
+                }
+            }
+
+            // Experience (Mocking some default since we don't have exact year extraction in state yet, but let's assume 3 for now if detected role)
+            document.getElementById('salary-exp').value = 3;
+            document.getElementById('exp-val').textContent = '3 years';
+
+            showToast('Auto-filled', 'Data imported from your CV analysis.', 'success');
+        } else {
+            showToast('Warning', 'Analyze your CV first to use auto-fill.', 'warning');
+        }
+    } catch (e) {
+        showToast('Error', 'Could not fetch profile data.', 'danger');
+    }
+}
+
+let currentSearchOffset = 0;
+const SEARCH_LIMIT = 20;
+
+async function handleJobSearch() {
+    currentSearchOffset = 0; // Reset offset on new search
+    const queryInput = document.getElementById('job-search-input');
+    const citySelect = document.getElementById('search-city-filter');
+    const resultsDiv = document.getElementById('searchResults');
+    const countSpan = document.getElementById('search-results-count');
+    const loadMoreBtn = document.getElementById('btn-load-more');
+
+    if (!resultsDiv || !queryInput) return;
+
+    const query = queryInput.value;
+    const city = citySelect ? citySelect.value : 'All Locations';
+
+    // Collect Experience Filters
+    const expArr = [];
+    if (document.getElementById('exp-intern')?.checked) expArr.push('intern');
+    if (document.getElementById('exp-junior')?.checked) expArr.push('junior');
+    if (document.getElementById('exp-senior')?.checked) expArr.push('senior');
+    if (document.getElementById('exp-lead')?.checked) expArr.push('lead');
+    const expParam = expArr.join(',');
+
+    // Collect Job Type Filters
+    const typeArr = [];
+    if (document.getElementById('type-full')?.checked) typeArr.push('full');
+    if (document.getElementById('type-part')?.checked) typeArr.push('part');
+    if (document.getElementById('type-remote')?.checked) typeArr.push('remote');
+    if (document.getElementById('type-contract')?.checked) typeArr.push('contract');
+    const typeParam = typeArr.join(',');
+
+    // Collect Salary Filter
+    const salaryRange = document.getElementById('search-salary-range');
+    const minSalary = salaryRange ? salaryRange.value : 0;
+
+    resultsDiv.innerHTML = '<div class="col-12 text-center py-5"><div class="spinner-border text-primary"></div><p class="mt-2 text-muted">Searching the database...</p></div>';
+
+    try {
+        const url = `/api/search?q=${encodeURIComponent(query)}&city=${encodeURIComponent(city)}&offset=0&limit=${SEARCH_LIMIT}&exp=${expParam}&type=${typeParam}&min_salary=${minSalary}`;
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (countSpan) countSpan.textContent = `(${data.total} results)`;
+        resultsDiv.innerHTML = '';
+
+        if (data.jobs.length === 0) {
+            resultsDiv.innerHTML = '<div class="col-12 text-center py-5 text-muted"><i class="bi bi-search fs-1 opacity-25"></i><p class="mt-2">No jobs found matching your criteria.</p></div>';
+            if (loadMoreBtn) loadMoreBtn.parentElement.classList.add('d-none');
+            return;
+        }
+
+        renderJobsBatch(data.jobs);
+
+        // Toggle Load More button
+        if (loadMoreBtn) {
+            if (data.has_more) {
+                loadMoreBtn.parentElement.classList.remove('d-none');
+            } else {
+                loadMoreBtn.parentElement.classList.add('d-none');
+            }
+        }
+
+    } catch (e) {
+        console.error("Search error:", e);
+        resultsDiv.innerHTML = '<div class="col-12 text-center py-5 text-danger"><p>Error connecting to search service.</p></div>';
+    }
+}
+
+async function loadMoreJobs() {
+    const queryInput = document.getElementById('job-search-input');
+    const citySelect = document.getElementById('search-city-filter');
+    const loadMoreBtn = document.getElementById('btn-load-more');
+
+    if (!loadMoreBtn) return;
+
+    currentSearchOffset += SEARCH_LIMIT;
+    const query = queryInput ? queryInput.value : '';
+    const city = citySelect ? citySelect.value : 'All Locations';
+
+    const originalText = loadMoreBtn.innerHTML;
+    loadMoreBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Loading...';
+    loadMoreBtn.disabled = true;
+
+    try {
+        const expArr = [];
+        const expIds = ['exp-intern', 'exp-junior', 'exp-senior', 'exp-lead'];
+        expIds.forEach(id => { if (document.getElementById(id)?.checked) expArr.push(id.replace('exp-', '')); });
+        const expParam = expArr.join(',');
+
+        const typeArr = [];
+        const typeIds = ['type-full', 'type-part', 'type-remote', 'type-contract'];
+        typeIds.forEach(id => { if (document.getElementById(id)?.checked) typeArr.push(id.replace('type-', '')); });
+        const typeParam = typeArr.join(',');
+
+        const minSalary = document.getElementById('search-salary-range')?.value || 0;
+
+        const url = `/api/search?q=${encodeURIComponent(query)}&city=${encodeURIComponent(city)}&offset=${currentSearchOffset}&limit=${SEARCH_LIMIT}&exp=${expParam}&type=${typeParam}&min_salary=${minSalary}`;
+        const response = await fetch(url);
+        const data = await response.json();
+
+        renderJobsBatch(data.jobs);
+
+        if (!data.has_more) {
+            loadMoreBtn.parentElement.classList.add('d-none');
+        }
+    } catch (e) {
+        showToast('Error', 'Failed to load more jobs', 'danger');
+    } finally {
+        loadMoreBtn.innerHTML = originalText;
+        loadMoreBtn.disabled = false;
+    }
+}
+
+function renderJobsBatch(jobs) {
+    const resultsDiv = document.getElementById('searchResults');
+    if (!resultsDiv) return;
+
+    jobs.forEach(job => {
+        const card = `
+            <div class="col-md-6 mb-4">
+                <div class="card h-100 border-0 shadow-sm rounded-4 hover-lift">
+                    <div class="card-body p-4 d-flex flex-column">
+                        <div class="d-flex justify-content-between mb-3">
+                            <span class="badge bg-primary-soft text-primary rounded-pill px-3">${job.type}</span>
+                            <span class="text-muted small"><i class="bi bi-geo-alt me-1"></i>${job.location}</span>
+                        </div>
+                        <h5 class="fw-bold mb-1">${job.title}</h5>
+                        <p class="text-muted small mb-3">${job.company}</p>
+                        <div class="d-flex justify-content-between align-items-center mt-auto">
+                            <div class="text-primary fw-bold">${job.salary}</div>
+                            <a href="${job.url}" target="_blank" class="btn btn-sm btn-outline-primary rounded-pill px-3">
+                                <i class="bi bi-box-arrow-up-right me-1"></i>Learn More
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        resultsDiv.insertAdjacentHTML('beforeend', card);
+    });
+}
+
+function resetSearchFilters() {
+    const queryInput = document.getElementById('job-search-input');
+    const citySelect = document.getElementById('search-city-filter');
+    const salaryRange = document.getElementById('search-salary-range');
+    const expChecks = ['exp-intern', 'exp-junior', 'exp-senior', 'exp-lead'];
+    const typeChecks = ['type-full', 'type-part', 'type-remote', 'type-contract'];
+
+    if (queryInput) queryInput.value = '';
+    if (citySelect) citySelect.selectedIndex = 0;
+    if (salaryRange) {
+        salaryRange.value = 0;
+        document.getElementById('search-salary-val').textContent = '$0k+';
+    }
+    expChecks.forEach(id => {
+        const cb = document.getElementById(id);
+        if (cb) cb.checked = true; // Check all by default for "all" results
+    });
+    typeChecks.forEach(id => {
+        const cb = document.getElementById(id);
+        if (cb) cb.checked = true; // Check all by default
+    });
+
+    handleJobSearch();
+}
+
+// Initialize Search on startup if elements exist
+document.addEventListener('DOMContentLoaded', () => {
+    const searchInput = document.getElementById('job-search-input');
+    if (searchInput) {
+        // Initial search to populate
+        handleJobSearch();
+
+        // Enter key listener
+        searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') handleJobSearch();
+        });
+    }
+});

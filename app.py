@@ -47,7 +47,8 @@ state = {
     'user_exp_bucket': None,
     'user_raw2can_best': None,
     'user_raw2can_map': None,
-    'G': None,
+    'G': None,          # Base job graph
+    'current_G': None,  # Working graph (User + Jobs)
     'tfidf': None,
     'X': None,
     'IDX': None,
@@ -119,26 +120,23 @@ def upload_files():
         pdf_path = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(pdf_file.filename))
         pdf_file.save(pdf_path)
 
-        # Load data
-        _, df = load_excel_file(excel_path)
+        # 1. Load CV text (Speed: depends on PDF size/OCR)
         cv_text = extract_all_text_from_pdf(pdf_path, verbose=False)
-
-        # Store in state
-        state['df'] = df
         state['cv_text'] = cv_text
 
-        # Initialize graph
-        G = nx.DiGraph()
-        rdf, EX = init_rdf_graph()
-        state['G'] = G
+        # 2. Get pre-computed data from state (Speed: FAST, O(1))
+        job_info = state['job_info']
+        job_nodes = state['job_nodes']
+        valid_job_nodes = state['valid_job_nodes']
+        tfidf = state['tfidf']
+        X = state['X']
+        IDX = state['IDX']
+        
+        # 3. Create a clean working graph from the base job graph (Speed: FAST)
+        G = state['G'].copy()
+        state['current_G'] = G
 
-        # Build job nodes
-        job_info = {}
-        job_nodes, job_info = build_job_nodes(G, df, job_info)
-        state['job_nodes'] = job_nodes
-        state['job_info'] = job_info
-
-        # Build user node
+        # 4. Build user node and extract skills (Speed: moderate, depends on CV)
         USER_ID, user_prob, user_city, user_detail, user_raw2can_map, user_raw2can_best = \
             build_user_node(G, cv_text)
 
@@ -152,43 +150,23 @@ def upload_files():
         user_exp_min, user_exp_max, _ = parse_year_range(cv_text)
         state['user_exp_bucket'] = exp_bucket(user_exp_min, user_exp_max) if user_exp_min is not None else "Exp_Unknown"
 
-        # Build TF-IDF
-        valid_job_nodes = [j for j in job_nodes if j in job_info]
-        texts = [job_info[j]["text"] for j in valid_job_nodes]
-        
-        tfidf = TfidfVectorizer(
-            analyzer="char_wb", ngram_range=(3, 5),
-            min_df=1, max_df=1.0, max_features=12000,
-            sublinear_tf=True, lowercase=True
-        )
-        X = tfidf.fit_transform(texts)
-        X = normalize(X)
-        
-        state['tfidf'] = tfidf
-        state['X'] = X
-        state['IDX'] = {j: i for i, j in enumerate(valid_job_nodes)}
-        state['valid_job_nodes'] = valid_job_nodes
-
+        # 5. Transform CV text to TF-IDF (Speed: FAST, O(phrase_len))
         cv_vec = normalize(tfidf.transform([norm_text(cv_text)]))
         state['cv_vec'] = cv_vec
 
-        # Compute scores
+        # 6. Compute user-job match scores (Speed: moderate, O(N_jobs))
         scores = compute_user_job_scores(
             job_nodes, job_info, user_prob, user_city, user_detail,
-            state['IDX'], X, cv_vec, tfidf, state['user_role_can'], 
+            IDX, X, cv_vec, tfidf, state['user_role_can'], 
             state['user_exp_bucket'], user_raw2can_best, user_raw2can_map
         )
         state['scores'] = scores
 
-        # Add MATCHES_JOB edges to graph with scores
+        # 7. Add MATCHES_JOB edges to current graph (Speed: FAST)
         for job_node, score, explain in scores:
             G.add_edge(USER_ID, job_node, rel="MATCHES_JOB", score=round(score, 3))
 
-        # Build SIMILAR_TO edges between jobs using collab.py logic
-        sim_edge_count = build_job_job_similar_edges(G, valid_job_nodes, job_info, state['IDX'], X)
-        print(f"Added {sim_edge_count} SIMILAR_TO edges between jobs")
-
-        # Clean up uploaded PDF file
+        # Clean up
         os.remove(pdf_path)
 
         return jsonify({
@@ -346,11 +324,11 @@ def statistics():
 #         return jsonify({'error': str(e)}), 500
 @app.route('/graph')
 def graph_data():
-    if state.get('G') is None or state.get('cv_text') is None:
+    if state.get('current_G') is None or state.get('cv_text') is None:
         return jsonify({'error': 'No graph available. Please upload a CV first.'}), 400
 
     try:
-        G = state['G']
+        G = state['current_G']
         USER_ID = state.get('USER_ID')
 
         # --- chọn center node (giữ logic cũ của bạn)
@@ -429,52 +407,110 @@ def process_graph(H, center_node, max_nodes=200):
 
 @app.route('/interview/chat', methods=['POST'])
 def interview_chat():
-    """Mock AI Interview Endpoint"""
-    # In a real scenario, this would call OpenAI/Gemini/Claude
+    """Bilingual Personalized AI Interview Endpoint"""
+    if state.get('cv_text') is None:
+        return jsonify({'reply': "I'm ready to interview you! Please upload your CV first so I can tailor the questions to your experience. (Tôi đã sẵn sàng phỏng vấn bạn! Vui lòng tải CV lên trước để tôi có thể điều chỉnh câu hỏi phù hợp với kinh nghiệm của bạn.)"})
+
     data = request.json
     user_msg = data.get('message', '').lower()
+    history = data.get('history', [])
     
-    # Simple rule-based logic for demo
-    if 'intro' in user_msg or 'myself' in user_msg:
-        reply = "Thank you. That's a strong background. What specific experience do you have with Python and Flask?"
-    elif 'python' in user_msg or 'flask' in user_msg:
-        reply = "Excellent. Can you describe a challenging bug you encountered in a recent project and how you solved it?"
-    elif 'bug' in user_msg or 'solve' in user_msg:
-        reply = "Problem-solving is key. Now, how do you handle tight deadlines and pressure in a team environment?"
-    elif 'deadline' in user_msg or 'pressure' in user_msg:
-        reply = "That's good to hear. Do you have any questions for us about the company or the role?"
+    # Context from state
+    user_role = state.get('user_role_can', 'Professional')
+    user_skills = list(state.get('user_prob', {}).keys())
+    
+    # Target Job (from top match)
+    target_job = "the position"
+    if state.get('scores') and len(state['scores']) > 0:
+        target_job = state['job_info'][state['scores'][0][0]]['title']
+
+    # Determine interview stage based on history length
+    turn_count = len([h for h in history if h.get('role') == 'user'])
+    
+    # Bilingual rule-based logic
+    if turn_count == 0:
+        reply = (f"Hello! I am your AI Interviewer. Based on your profile, I see you have a strong background as a {user_role}. "
+                 f"We are considering you for the {target_job} role. To start, could you please introduce yourself and highlight how your experience fits this position?\n\n"
+                 f"(Chào bạn! Tôi là Người phỏng vấn AI. Dựa trên hồ sơ của bạn, tôi thấy bạn có nền tảng vững chắc là một {user_role}. "
+                 f"Chúng tôi đang xem xét bạn cho vị trí {target_job}. Để bắt đầu, bạn vui lòng giới thiệu bản thân và nêu bật kinh nghiệm của bạn phù hợp với vị trí này như thế nào?)")
+    
+    elif turn_count == 1:
+        if user_skills:
+            skill = user_skills[0]
+            reply = (f"That's a great overview. I noticed '{skill}' is one of your key skills. Can you describe a specific project where you applied this skill to solve a complex problem?\n\n"
+                     f"(Đó là một phần giới thiệu tuyệt vời. Tôi nhận thấy '{skill}' là một trong những kỹ năng chính của bạn. Bạn có thể mô tả một dự án cụ thể mà bạn đã áp dụng kỹ năng này để giải quyết một vấn đề phức tạp không?)")
+        else:
+            reply = ("Thank you. Can you tell me about the most challenging technical project you've worked on recently?\n\n"
+                     "(Cảm ơn bạn. Bạn có thể kể về dự án kỹ thuật thử thách nhất mà bạn đã thực hiện gần đây không?)")
+
+    elif turn_count == 2:
+        reply = (f"Interesting. Problem-solving is crucial for a {user_role}. Now, how do you typically handle tight deadlines or shifting priorities in a team environment?\n\n"
+                 f"(Thật thú vị. Giải quyết vấn đề rất quan trọng đối với một {user_role}. Bây giờ, bạn thường xử lý thế nào khi gặp thời hạn gấp hoặc ưu tiên công việc thay đổi trong môi trường nhóm?)")
+    
+    elif turn_count == 3:
+        reply = (f"I appreciate that perspective. Looking at the requirements for {target_job}, what do you consider to be your biggest area for growth or a skill you are currently looking to develop further?\n\n"
+                 f"(Tôi đánh giá cao quan điểm đó. Nhìn vào các yêu cầu cho vị trí {target_job}, bạn coi đâu là lĩnh vực cần phát triển nhất hoặc kỹ năng nào bạn đang muốn hoàn thiện hơn?)")
+    
+    elif 'salary' in user_msg or 'expect' in user_msg or 'lương' in user_msg:
+         reply = ("We can certainly discuss compensation later. For now, let's focus on your fit for the role. Do you have any questions for me about the company culture or the team?\n\n"
+                  "(Chúng ta chắc chắn sẽ thảo luận về thù lao sau. Hiện tại, hãy tập trung vào mức độ phù hợp của bạn với vị trí này. Bạn có câu hỏi nào cho tôi về văn hóa công ty hoặc đội ngũ không?)")
+    
     else:
-        reply = "That's interesting. Could you elaborate a bit more on that point?"
+        replies = [
+            ("That's a very clear explanation. Thank you. (Đó là một lời giải thích rất rõ ràng. Cảm ơn bạn.)"),
+            ("I see. That would certainly be valuable in this role. (Tôi hiểu rồi. Điều đó chắc chắn sẽ rất giá trị trong vai trò này.)"),
+            ("Could you elaborate a bit more on how you handled the communication in that situation? (Bạn có thể nói rõ hơn một chút về cách bạn xử lý việc giao tiếp trong tình huống đó không?)"),
+            ("Excellent. I have a good understanding of your background now. Do you have any final questions for me? (Tuyệt vời. Bây giờ tôi đã hiểu rõ về nền tảng của bạn. Bạn có câu hỏi cuối cùng nào cho tôi không?)")
+        ]
+        import random
+        reply = random.choice(replies)
 
     import time
-    time.sleep(1.5) # Simulate AI thinking
+    time.sleep(1.0)
     
     return jsonify({'reply': reply})
 
+@app.route('/api/user-profile')
+def user_profile():
+    """Get summarized user profile for UI widgets"""
+    if state.get('cv_text') is None:
+        return jsonify({'active': False})
+    
+    target_job = "N/A"
+    match_score = 0
+    if state.get('scores') and len(state['scores']) > 0:
+        best_job_id = state['scores'][0][0]
+        target_job = state['job_info'][best_job_id]['title']
+        match_score = state['scores'][0][1]
+
+    return jsonify({
+        'active': True,
+        'role': state.get('user_role_can', 'Unknown'),
+        'skills_count': len(state.get('user_prob', {})),
+        'target_job': target_job,
+        'match_score': round(match_score * 100, 1),
+        'city': state.get('user_city', 'Unknown')
+    })
+
 @app.route('/api/salary-estimate', methods=['POST'])
 def salary_estimate():
-    """Estimate salary based on role and experience from DB"""
+    """Estimate salary based on role, experience, and skills from DB"""
     data = request.json
     role_query = data.get('role', '').lower()
     exp_year = int(data.get('exp', 0))
     location = data.get('location', '').lower()
+    skills = data.get('skills', [])
 
     if state['df'] is None:
-         # Fallback if DB not loaded
         return jsonify({
             'min': 1000 + (exp_year * 200),
             'max': 1800 + (exp_year * 300),
-            'currency': 'USD (Est.)',
-            'note': 'Database not loaded, using heuristic.'
+            'currency': 'USD (Est.)'
         })
 
     df = state['df']
-    
-    # 1. Filter by Role
-    # Simple keyword match
     mask_role = df['job_title'].str.lower().str.contains(role_query, na=False)
     
-    # 2. Filter by Location (Optional)
     if 'remote' in location:
         mask_loc = df['location'].str.lower().str.contains('remote', na=False)
     elif location:
@@ -483,41 +519,22 @@ def salary_estimate():
         mask_loc = True
 
     subset = df[mask_role & mask_loc]
-    
     if len(subset) < 3:
-        # Fallback to just role if location is too specific
         subset = df[mask_role]
 
     if len(subset) == 0:
-        return jsonify({
-            'min': 1000,
-            'max': 2000,
-            'currency': 'USD',
-            'note': 'No matching data found.'
-        })
+        return jsonify({'min': 1000, 'max': 2000, 'currency': 'USD'})
 
-    # 3. Parse Salaries
-    # Expected formats: "10 - 20 triệu", "Up to 3000 USD", "Thỏa thuận"
     salaries = []
-    
     import re
-    
     def parse_salary_str(s):
         s = str(s).lower().strip()
-        if not s or 'thỏa thuận' in s:
-            return None
-            
-        # Detect currency
+        if not s or 'thỏa thuận' in s: return None
         is_usd = 'usd' in s or '$' in s
-        scale = 25000 if is_usd else 1000000 # Convert all to VND for calc
-        
-        # Extract numbers
+        scale = 25000 if is_usd else 1000000 
         nums = re.findall(r'(\d+[.,]?\d*)', s.replace('.', '').replace(',', ''))
         nums = [float(n) for n in nums]
-        
-        if not nums:
-            return None
-            
+        if not nums: return None
         if len(nums) == 1:
              val = nums[0] * scale
              return (val, val)
@@ -529,33 +546,26 @@ def salary_estimate():
 
     for s_str in subset['salary']:
         parsed = parse_salary_str(s_str)
-        if parsed:
-            salaries.append(parsed)
+        if parsed: salaries.append(parsed)
             
     if not salaries:
-         return jsonify({
-            'min': 1000,
-            'max': 2000,
-            'currency': 'USD',
-            'note': 'Data available but no salary info.'
-        })
+         return jsonify({'min': 1200, 'max': 2400, 'currency': 'USD'})
 
-    # 4. Calculate Stats
-    # Convert VND back to USD approx (1 USD = 25000 VND)
     mins = [s[0] for s in salaries]
     maxs = [s[1] for s in salaries]
     
     avg_min = np.mean(mins)
     avg_max = np.mean(maxs)
     
-    # Adjust for experience (simple heuristic multiplier)
-    # Assume DB average is for "middle" level ~3 years
-    # If user has 0 exp, * 0.7. If 10 exp, * 1.5
-    exp_multiplier = 0.7 + (exp_year * 0.08)
-    exp_multiplier = min(max(exp_multiplier, 0.7), 2.0)
+    # Experience Multiplier
+    exp_multiplier = 0.7 + (exp_year * 0.1) # 10% increase per year
+    exp_multiplier = min(max(exp_multiplier, 0.7), 2.5)
+    
+    # Skills Bonus (5% per selected skill, max 20%)
+    skill_bonus = 1.0 + (min(len(skills), 4) * 0.05)
     
     final_min = (avg_min * exp_multiplier) / 25000
-    final_max = (avg_max * exp_multiplier) / 25000
+    final_max = (avg_max * exp_multiplier * skill_bonus) / 25000
     
     return jsonify({
         'min': int(final_min),
@@ -564,29 +574,166 @@ def salary_estimate():
         'count': len(salaries)
     })
 
+@app.route('/api/search')
+def api_search():
+    """Real-time job search with advanced filtering"""
+    query = request.args.get('q', '').lower()
+    city = request.args.get('city', 'All Locations').lower()
+    offset = int(request.args.get('offset', 0))
+    limit = int(request.args.get('limit', 20))
+    exp_levels = request.args.get('exp', '') # e.g. "intern,junior,senior,lead"
+    job_types = request.args.get('type', '') # e.g. "full,part,remote"
+    min_salary = int(request.args.get('min_salary', 0))
+    
+    if state['df'] is None:
+        return jsonify({'jobs': [], 'has_more': False, 'total': 0})
+
+    df = state['df']
+    mask = pd.Series([True] * len(df))
+
+    # 1. Keyword Search (support multiple keywords, all must match)
+    if query:
+        import re
+        # Escape special regex characters in query
+        query_escaped = re.escape(query)
+        # Split into multiple keywords
+        keywords = [kw.strip() for kw in query.split() if kw.strip()]
+        
+        search_cols = ['job_title', 'company', 'requirements', 'job_desc', 'skills', 'benefits', 'location']
+        
+        for keyword in keywords:
+            keyword_escaped = re.escape(keyword.lower())
+            kw_mask = pd.Series([False] * len(df))
+            for col in search_cols:
+                if col in df.columns:
+                    kw_mask |= df[col].astype(str).str.lower().str.contains(keyword_escaped, na=False, regex=True)
+            mask &= kw_mask
+
+    # 2. City Filter
+    if city != 'all locations':
+        if city == 'remote':
+            mask &= df['location'].str.lower().str.contains('remote', na=False)
+        else:
+            mask &= df['location'].str.lower().str.contains(city, na=False)
+
+    # 3. Job Type Filter (Only apply if NOT all options selected)
+    if job_types:
+        type_list = [t.strip() for t in job_types.split(',') if t.strip()]
+        # If all 4 types selected, skip filter (means "All")
+        if len(type_list) < 4:
+            t_mask = pd.Series([False] * len(df))
+            for t in type_list:
+                if t == 'full': 
+                    t_mask |= df['job_type'].str.lower().str.contains('toàn thời gian|full|fulltime|full-time', na=False, regex=True)
+                elif t == 'part': 
+                    t_mask |= df['job_type'].str.lower().str.contains('bán thời gian|part|parttime|part-time', na=False, regex=True)
+                elif t == 'remote': 
+                    t_mask |= df['location'].str.lower().str.contains('remote|từ xa|work from home|wfh', na=False, regex=True)
+                elif t == 'contract': 
+                    t_mask |= df['job_type'].str.lower().str.contains('thực tập|hợp đồng|freelance|contract|intern', na=False, regex=True)
+            mask &= t_mask
+
+    # 4. Experience Filter (Only apply if NOT all options selected)
+    if exp_levels:
+        exp_list = [e.strip() for e in exp_levels.split(',') if e.strip()]
+        # If all 4 experience levels selected, skip filter (means "All")
+        if len(exp_list) < 4:
+            exp_mask = pd.Series([False] * len(df))
+            for level in exp_list:
+                if level == 'intern':
+                    exp_mask |= df['job_title'].str.lower().str.contains('intern|fresher|thực tập|mới tốt nghiệp|sinh viên', na=False, regex=True)
+                elif level == 'junior':
+                    exp_mask |= df['job_title'].str.lower().str.contains('junior|entry|nhân viên|nv|1 năm|2 năm|1-2', na=False, regex=True)
+                elif level == 'senior':
+                    exp_mask |= df['job_title'].str.lower().str.contains('senior|expert|middle|chuyên gia|3 năm|4 năm|5 năm', na=False, regex=True)
+                elif level == 'lead':
+                    exp_mask |= df['job_title'].str.lower().str.contains('lead|manager|head|director|trưởng|giám đốc|quản lý', na=False, regex=True)
+            mask &= exp_mask
+
+    filtered_df = df[mask]
+    
+    # 5. Salary Filter
+    if min_salary > 0:
+        def check_salary(s_str):
+            import re
+            s_str = str(s_str).lower()
+            if 'thỏa thuận' in s_str: return True
+            nums = re.findall(r'(\d+)', s_str.replace('.', '').replace(',', ''))
+            if not nums: return True
+            is_usd = 'usd' in s_str or '$' in s_str
+            val = float(nums[-1])
+            if not is_usd: val = val / 25 
+            return val >= min_salary
+        
+        filtered_df = filtered_df[filtered_df['salary'].apply(check_salary)]
+
+    total_count = len(filtered_df)
+    results = filtered_df.iloc[offset : offset + limit]
+    
+    output = []
+    for _, row in results.iterrows():
+        output.append({
+            'id': row.get('id', ''),
+            'title': row.get('job_title', 'Unknown Role'),
+            'company': row.get('company', 'Unknown Company'),
+            'location': row.get('location', 'Remote'),
+            'salary': row.get('salary', 'Thỏa thuận'),
+            'url': row.get('job_url', '#'),
+            'type': 'Full-time'
+        })
+    
+    return jsonify({
+        'jobs': output,
+        'has_more': (offset + limit) < total_count,
+        'total': total_count
+    })
+
 if __name__ == '__main__':
-    # Load DB on start if exists
+    # Initialize system and preload DB
     try:
         excel_path = os.path.join(os.path.dirname(__file__), 'db_job_tuan.xlsx')
         if os.path.exists(excel_path):
-            print("Loading DB...")
-            _, df = load_excel_file(excel_path)
+            print("🚀 Initializing NCKH Job Matching System...")
             
-            # OPTIMIZATION: Limit to 50 rows for demo speed
-            print(f"Original DB size: {len(df)}")
-            if len(df) > 50:
-                print("Limiting to 50 rows for faster startup...")
-                df = df.head(50)
+            # 1. Load Excel Data
+            _, df = load_excel_file(excel_path)
             
             state['df'] = df
             
-            # Build Graph
+            # 2. Build Base Job Graph
             G = nx.DiGraph()
             init_rdf_graph()
+            job_info = {}
+            job_nodes, job_info = build_job_nodes(G, df, job_info)
             state['G'] = G
-            build_job_nodes(G, df, {})
-            print("DB Loaded.")
+            state['job_nodes'] = job_nodes
+            state['job_info'] = job_info
+            
+            # 3. Pre-compute TF-IDF for all jobs
+            print("Pre-computing TF-IDF vectors...")
+            valid_job_nodes = [j for j in job_nodes if j in job_info]
+            texts = [job_info[j]["text"] for j in valid_job_nodes]
+            
+            tfidf = TfidfVectorizer(
+                analyzer="char_wb", ngram_range=(3, 5),
+                min_df=1, max_df=1.0, max_features=12000,
+                sublinear_tf=True, lowercase=True
+            )
+            X = tfidf.fit_transform(texts)
+            X = normalize(X)
+            
+            state['tfidf'] = tfidf
+            state['X'] = X
+            state['IDX'] = {j: i for i, j in enumerate(valid_job_nodes)}
+            state['valid_job_nodes'] = valid_job_nodes
+            
+            # 4. Pre-compute Job-to-Job Similarities (SIMILAR_TO edges)
+            print("Pre-calculating job-job similarities...")
+            sim_edge_count = build_job_job_similar_edges(G, valid_job_nodes, job_info, state['IDX'], X)
+            print(f"Added {sim_edge_count} SIMILAR_TO edges.")
+            
+            print("✅ System Ready.")
     except Exception as e:
-        print(f"Error loading DB on start: {e}")
+        print(f"❌ Error during initialization: {e}")
 
     app.run(debug=True, host='0.0.0.0', port=5000)

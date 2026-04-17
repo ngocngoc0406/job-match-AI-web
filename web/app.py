@@ -963,6 +963,8 @@ def interview_summary():
     avg_tech = sum(tech_depths)/len(tech_depths) if tech_depths else 0
     
     # 2. Communication Score (Word count & Variety)
+    word_counts = [len(h.get('content', '').split()) for h in user_turns]
+    avg_words = round(sum(word_counts)/len(word_counts), 1) if word_counts else 0
     comm_variety = [len(set(h.get('content', '').split())) for h in user_turns]
     avg_comm = min((sum(comm_variety)/len(comm_variety))/30 * 100, 100) if comm_variety else 0
     
@@ -1006,8 +1008,7 @@ def interview_summary():
         },
         'feedback': feedback,
         'feedback_vi': feedback_vi,
-        'detected_skills': list(set([s for h in user_turns if h.get('analysis') for s in h['analysis'].get('mentioned_skills', [])]))
-    })
+        'detected_skills': list(set([s for h in user_turns if h.get('analysis') for s in h['analysis'].get('mentioned_skills', [])])),
         'avg_response_words': avg_words,
         'target_job': target_job,
         'match_score': match_score,

@@ -2,7 +2,7 @@
 """Configuration settings for NCKH job matching system"""
 
 # USER–JOB MATCHING
-TOPK_USER_JOB = 3
+TOPK_USER_JOB = 10
 W_SKILL = 0.78
 W_LOC = 0.22
 
@@ -167,14 +167,8 @@ SAMPLE_N = 100
 TRIALS = 5
 KS = [1, 3, 5, 10]
 
-# Add or update configuration variables for graph visualization
-RANDOM_SEED = 42  # Seed for reproducibility in layouts
-SHOW_EDGE_SCORES = True  # Whether to display edge scores
-TOPK_USER_JOB = 3  # Top K jobs to display for a user
-TOPK_SIMILAR = 3  # Top K similar nodes to display
-CENTER_JOB_ID = None  # Specific job ID to center the graph on
-CENTER_MODE = "user"  # Options: "user", "top_job", "job_id", "random_job"
-USER_ID = "user::cv_001"  # Default user ID for the graph
-
-# Define important edges for visualization
+# Graph visualization helpers (no duplicates)
+CENTER_JOB_ID = None
+CENTER_MODE = "user"
+USER_ID = "user::cv_001"
 IMPORTANT_EDGES = ["MATCHES_JOB", "SIMILAR_TO"]

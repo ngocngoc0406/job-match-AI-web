@@ -192,17 +192,7 @@ def add_kanban_item():
         return jsonify({'success': True, 'item': new_card})
     return jsonify({'error': 'Invalid status'}), 400
 
-@app.route('/user-skills')
-def get_user_skills():
-    if state.get('user_prob') is None:
-        return jsonify([])
-    # Return sorted skills
-    sorted_skills = sorted(
-        [{'name': k, 'probability': v} for k, v in state['user_prob'].items()],
-        key=lambda x: x['probability'],
-        reverse=True
-    )
-    return jsonify(sorted_skills)
+
 
 @app.route('/upload', methods=['POST'])
 def upload_files():
@@ -354,11 +344,14 @@ def cv_full():
 def job_detail(job_id):
     """Get detailed job information"""
     try:
-        # Find job by index
-        if int(job_id) >= len(state['scores']):
+        if state.get('scores') is None:
+            return jsonify({'error': 'Please scan your CV first'}), 400
+
+        idx = int(job_id)
+        if idx < 0 or idx >= len(state['scores']):
             return jsonify({'error': 'Job not found'}), 404
 
-        j, sc, ex = state['scores'][int(job_id)]
+        j, sc, ex = state['scores'][idx]
         job_info = state['job_info'][j]
         job_prob = job_info["prob_skills"]
 
@@ -371,9 +364,12 @@ def job_detail(job_id):
         else:
             user_prob_max_raw = state['user_prob']
 
-        xai = explain_user_job(user_prob_max_raw, job_prob, 
-                              user_raw2can=state['user_raw2can_map'], 
-                              job_raw2can=job_info.get('raw2can'))
+        xai = explain_user_job(
+            user_prob_max_raw,
+            job_prob,
+            user_raw2can=state['user_raw2can_map'],
+            job_raw2can=job_info.get('raw2can')
+        )
 
         detail = {
             'title': job_info['title'],
@@ -389,29 +385,38 @@ def job_detail(job_id):
 
         return jsonify(detail)
 
+    except ValueError:
+        return jsonify({'error': 'Invalid job id'}), 400
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 @app.route('/user-skills')
 def user_skills():
     """Get detected user skills"""
+    if state.get('user_prob') is None:
+        return jsonify([])
+
     skills = []
     for k, v in sorted(state['user_prob'].items(), key=lambda x: x[1], reverse=True):
-        core_tag = "CORE" if k in CORE_SKILLS_CANON else ""
         skills.append({
             'name': k,
-            'probability': float(v),  # Keep full precision
+            'probability': float(v),
             'is_core': k in CORE_SKILLS_CANON,
-            'tag': core_tag
+            'tag': "CORE" if k in CORE_SKILLS_CANON else ""
         })
 
     return jsonify(skills)
 
+
 @app.route('/statistics')
 def statistics():
     """Get dataset statistics"""
+    if not state.get('is_ready') or state.get('job_nodes') is None or state.get('job_info') is None:
+        return jsonify({'error': 'System not ready. Please wait for initialization.'}), 503
+
     job_nodes = state['job_nodes']
     job_info = state['job_info']
+    user_prob = state.get('user_prob') or {}
 
     # Calculate stats
     Cj_sizes = [len(job_info[j]["prob_skills"]) for j in job_nodes if j in job_info]
@@ -419,7 +424,7 @@ def statistics():
 
     stats = {
         'total_jobs': len(job_nodes),
-        'user_skills': len(state['user_prob']),
+        'user_skills': len(user_prob),
         'avg_job_skills': round(Cj_sizes.mean(), 3),
         'median_job_skills': round(np.median(Cj_sizes), 3),
         'min_job_skills': int(Cj_sizes.min()),
@@ -1484,7 +1489,10 @@ def init_application():
         print(f"[ERROR] Failed to initialize: {e}")
 
 
+# NOTE: Do NOT run this file directly.
+# Use: python main.py  (which calls init_application() first)
+# Running web/app.py directly will skip init_application() → all requests crash.
 if __name__ == "__main__":
-    init_application()
-    app.run(host="127.0.0.1", port=5000, debug=True)
-
+    import sys
+    print("[WARNING] Run 'python main.py' from the project root, not this file directly.")
+    sys.exit(1)

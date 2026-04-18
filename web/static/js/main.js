@@ -85,61 +85,144 @@ function updateCV() {
 // Inner Tabs Removed - now top level pages
 
 /* --- Authentication Mock --- */
-function handleLogin(e) {
-    e.preventDefault();
-    processAuth(e.target, 'Welcome back!', 'You have successfully logged in.');
+async function checkAuthStatus() {
+    try {
+        const response = await fetch('/api/auth-status');
+        const data = await response.json();
+        setAuthState(data.logged_in, data.user);
+    } catch (e) {
+        console.error("Auth status check failed", e);
+        setAuthState(false);
+    }
 }
 
-function handleRegister(e) {
-    e.preventDefault();
-    processAuth(e.target, 'Account Created!', 'Your account has been created successfully.');
-}
+// Call check on load
+document.addEventListener('DOMContentLoaded', checkAuthStatus);
 
-function processAuth(form, title, message) {
-    // Simulate API call
+async function handleLogin(e) {
+    e.preventDefault();
+    const form = e.target;
     const btn = form.querySelector('button[type="submit"]');
     const originalText = btn.innerHTML;
+    
+    // Convert FormData to JSON
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+
     btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    btn.disabled = true;
 
-    setTimeout(() => {
-        setAuthState(true);
-        // Hide all auth modals
-        const loginModalEl = document.getElementById('loginModal');
-        const registerModalEl = document.getElementById('registerModal');
-
-        if (loginModalEl) {
-            const modal = bootstrap.Modal.getInstance(loginModalEl);
-            if (modal) modal.hide();
+    try {
+        const response = await fetch('/api/login', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        if (response.ok) {
+            await checkAuthStatus();
+            closeAuthModals();
+            showToast('Welcome back!', result.message || 'Logged in successfully.', 'success');
+            setTimeout(() => { window.location.href = '/dashboard'; }, 1000);
+        } else {
+            showToast('Login Failed', result.error, 'danger');
         }
-        if (registerModalEl) {
-            const modal = bootstrap.Modal.getInstance(registerModalEl);
-            if (modal) modal.hide();
-        }
-
+    } catch (e) {
+        showToast('Error', 'Connection failed', 'danger');
+    } finally {
         btn.innerHTML = originalText;
-        showToast(title, message, 'success');
-        window.location.href = '/dashboard';
-    }, 1000);
+        btn.disabled = false;
+    }
 }
 
-function logout() {
-    setAuthState(false);
-    window.location.href = '/upload_page'; // Redirect to upload
-    showToast('Logged out', 'See you next time!', 'info');
+async function handleRegister(e) {
+    e.preventDefault();
+    const form = e.target;
+    const btn = form.querySelector('button[type="submit"]');
+    const originalText = btn.innerHTML;
+    
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+
+    // Basic validation
+    if (data.password !== data.confirm_password) {
+        showToast('Error', 'Passwords do not match', 'danger');
+        return;
+    }
+
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    btn.disabled = true;
+
+    try {
+        const response = await fetch('/api/register', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        if (response.ok) {
+            await checkAuthStatus();
+            closeAuthModals();
+            showToast('Account Created!', result.message, 'success');
+            setTimeout(() => { window.location.href = '/dashboard'; }, 1000);
+        } else {
+            showToast('Registration Failed', result.error, 'danger');
+        }
+    } catch (e) {
+        showToast('Error', 'Connection failed', 'danger');
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
 }
 
-function setAuthState(isLoggedIn) {
+function closeAuthModals() {
+    const loginModalEl = document.getElementById('loginModal');
+    const registerModalEl = document.getElementById('registerModal');
+    if (loginModalEl) {
+        const m = bootstrap.Modal.getInstance(loginModalEl);
+        if (m) m.hide();
+    }
+    if (registerModalEl) {
+        const m = bootstrap.Modal.getInstance(registerModalEl);
+        if (m) m.hide();
+    }
+}
+
+async function logout() {
+    try {
+        await fetch('/api/logout', { method: 'POST' });
+        setAuthState(false);
+        showToast('Logged out', 'See you next time!', 'info');
+        setTimeout(() => { window.location.href = '/upload_page'; }, 1000);
+    } catch (e) {
+        console.error("Logout failed", e);
+    }
+}
+
+function setAuthState(isLoggedIn, user = null) {
     const authButtons = document.getElementById('authButtons');
     const userProfile = document.getElementById('userProfile');
 
-    if (!authButtons || !userProfile) return; // Guard: elements may not exist on all pages
+    if (!authButtons || !userProfile) return;
 
     if (isLoggedIn) {
-        localStorage.setItem('isLoggedIn', 'true');
         authButtons.classList.add('d-none');
         userProfile.classList.remove('d-none');
+        // If there's an element to show user's name:
+        const nameEl = userProfile.querySelector('.user-name-display');
+        const avatarEl = userProfile.querySelector('.user-avatar-display');
+        if (nameEl && user && user.name) {
+             nameEl.textContent = user.name;
+        }
+        if (avatarEl && user && user.name) {
+             // Lấy tối đa 2 chữ cái đầu làm avatar
+             const initials = user.name.trim().split(/\s+/).map(n => n[0]).join('').substring(0, 2).toUpperCase();
+             avatarEl.textContent = initials;
+        }
     } else {
-        localStorage.removeItem('isLoggedIn');
         authButtons.classList.remove('d-none');
         userProfile.classList.add('d-none');
     }
@@ -652,7 +735,7 @@ async function loadResults() {
                             </div>
                         </div>
                         <div>
-                            <button class="btn btn-outline-primary btn-sm me-2" onclick="loadJobDetail(${index})">View Analysis</button>
+                            <button class="btn btn-outline-primary btn-sm me-2" onclick="loadJobDetail('${job.id}')">View Analysis</button>
                             <a href="${job.url}" target="_blank" class="btn btn-primary btn-sm">Apply</a>
                         </div>
                     </div>

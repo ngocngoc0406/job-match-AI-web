@@ -85,61 +85,144 @@ function updateCV() {
 // Inner Tabs Removed - now top level pages
 
 /* --- Authentication Mock --- */
-function handleLogin(e) {
-    e.preventDefault();
-    processAuth(e.target, 'Welcome back!', 'You have successfully logged in.');
+async function checkAuthStatus() {
+    try {
+        const response = await fetch('/api/auth-status');
+        const data = await response.json();
+        setAuthState(data.logged_in, data.user);
+    } catch (e) {
+        console.error("Auth status check failed", e);
+        setAuthState(false);
+    }
 }
 
-function handleRegister(e) {
-    e.preventDefault();
-    processAuth(e.target, 'Account Created!', 'Your account has been created successfully.');
-}
+// Call check on load
+document.addEventListener('DOMContentLoaded', checkAuthStatus);
 
-function processAuth(form, title, message) {
-    // Simulate API call
+async function handleLogin(e) {
+    e.preventDefault();
+    const form = e.target;
     const btn = form.querySelector('button[type="submit"]');
     const originalText = btn.innerHTML;
+    
+    // Convert FormData to JSON
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+
     btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    btn.disabled = true;
 
-    setTimeout(() => {
-        setAuthState(true);
-        // Hide all auth modals
-        const loginModalEl = document.getElementById('loginModal');
-        const registerModalEl = document.getElementById('registerModal');
-
-        if (loginModalEl) {
-            const modal = bootstrap.Modal.getInstance(loginModalEl);
-            if (modal) modal.hide();
+    try {
+        const response = await fetch('/api/login', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        if (response.ok) {
+            await checkAuthStatus();
+            closeAuthModals();
+            showToast('Welcome back!', result.message || 'Logged in successfully.', 'success');
+            setTimeout(() => { window.location.href = '/dashboard'; }, 1000);
+        } else {
+            showToast('Login Failed', result.error, 'danger');
         }
-        if (registerModalEl) {
-            const modal = bootstrap.Modal.getInstance(registerModalEl);
-            if (modal) modal.hide();
-        }
-
+    } catch (e) {
+        showToast('Error', 'Connection failed', 'danger');
+    } finally {
         btn.innerHTML = originalText;
-        showToast(title, message, 'success');
-        btn.innerHTML = originalText;
-        showToast(title, message, 'success');
-        window.location.href = '/dashboard';
-    }, 1000);
+        btn.disabled = false;
+    }
 }
 
-function logout() {
-    setAuthState(false);
-    window.location.href = '/upload_page'; // Redirect to upload
-    showToast('Logged out', 'See you next time!', 'info');
+async function handleRegister(e) {
+    e.preventDefault();
+    const form = e.target;
+    const btn = form.querySelector('button[type="submit"]');
+    const originalText = btn.innerHTML;
+    
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+
+    // Basic validation
+    if (data.password !== data.confirm_password) {
+        showToast('Error', 'Passwords do not match', 'danger');
+        return;
+    }
+
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    btn.disabled = true;
+
+    try {
+        const response = await fetch('/api/register', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        if (response.ok) {
+            await checkAuthStatus();
+            closeAuthModals();
+            showToast('Account Created!', result.message, 'success');
+            setTimeout(() => { window.location.href = '/dashboard'; }, 1000);
+        } else {
+            showToast('Registration Failed', result.error, 'danger');
+        }
+    } catch (e) {
+        showToast('Error', 'Connection failed', 'danger');
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
 }
 
-function setAuthState(isLoggedIn) {
+function closeAuthModals() {
+    const loginModalEl = document.getElementById('loginModal');
+    const registerModalEl = document.getElementById('registerModal');
+    if (loginModalEl) {
+        const m = bootstrap.Modal.getInstance(loginModalEl);
+        if (m) m.hide();
+    }
+    if (registerModalEl) {
+        const m = bootstrap.Modal.getInstance(registerModalEl);
+        if (m) m.hide();
+    }
+}
+
+async function logout() {
+    try {
+        await fetch('/api/logout', { method: 'POST' });
+        setAuthState(false);
+        showToast('Logged out', 'See you next time!', 'info');
+        setTimeout(() => { window.location.href = '/upload_page'; }, 1000);
+    } catch (e) {
+        console.error("Logout failed", e);
+    }
+}
+
+function setAuthState(isLoggedIn, user = null) {
     const authButtons = document.getElementById('authButtons');
     const userProfile = document.getElementById('userProfile');
 
+    if (!authButtons || !userProfile) return;
+
     if (isLoggedIn) {
-        localStorage.setItem('isLoggedIn', 'true');
         authButtons.classList.add('d-none');
         userProfile.classList.remove('d-none');
+        // If there's an element to show user's name:
+        const nameEl = userProfile.querySelector('.user-name-display');
+        const avatarEl = userProfile.querySelector('.user-avatar-display');
+        if (nameEl && user && user.name) {
+             nameEl.textContent = user.name;
+        }
+        if (avatarEl && user && user.name) {
+             // Lấy tối đa 2 chữ cái đầu làm avatar
+             const initials = user.name.trim().split(/\s+/).map(n => n[0]).join('').substring(0, 2).toUpperCase();
+             avatarEl.textContent = initials;
+        }
     } else {
-        localStorage.removeItem('isLoggedIn');
         authButtons.classList.remove('d-none');
         userProfile.classList.add('d-none');
     }
@@ -455,51 +538,10 @@ async function handleAddApp(e) {
     }
 }
 
-/* --- Search Mock Logic --- */
+/* --- Search Setup --- */
 function setupSearch() {
-    // Populate some initial results
-    const resultsDiv = document.getElementById('searchResults');
-    const jobs = [
-        { title: "Senior AI Engineer", company: "OpenAI", loc: "San Francisco", type: "Full-time", salary: "$180k - $250k", logo: "https://api.dicebear.com/7.x/initials/svg?seed=OA", tags: ["LLM", "Python"] },
-        { title: "Data Scientist", company: "NVIDIA", loc: "Santa Clara", type: "Remote", salary: "$160k - $220k", logo: "https://api.dicebear.com/7.x/initials/svg?seed=NV", tags: ["PyTorch", "CUDA"] },
-        { title: "Machine Learning Ops", company: "Tesla", loc: "Austin", type: "Full-time", salary: "$150k - $210k", logo: "https://api.dicebear.com/7.x/initials/svg?seed=TS", tags: ["Kubernetes", "MLFlow"] },
-        { title: "Product Manager (AI)", company: "Google", loc: "MTV", type: "Hybrid", salary: "$170k - $240k", logo: "https://api.dicebear.com/7.x/initials/svg?seed=GO", tags: ["Product", "Strategy"] }
-    ];
-
-    if (resultsDiv) {
-        resultsDiv.innerHTML = jobs.map(job => `
-            <div class="col-12">
-                <div class="card job-search-card border-0 shadow-sm rounded-4 overflow-hidden transition-hover">
-                    <div class="card-body p-4">
-                        <div class="d-flex align-items-start gap-4">
-                            <div class="company-logo rounded-4 p-2 bg-light d-flex align-items-center justify-content-center" style="width: 64px; height: 64px; flex-shrink: 0;">
-                                <img src="${job.logo}" class="img-fluid rounded-3" alt="logo">
-                            </div>
-                            <div class="flex-grow-1">
-                                <div class="d-flex justify-content-between align-items-start mb-1">
-                                    <h5 class="fw-bold mb-0">${job.title}</h5>
-                                    <span class="text-primary fw-bold">${job.salary}</span>
-                                </div>
-                                <div class="text-muted small mb-3">
-                                    <span class="fw-bold text-dark">${job.company}</span>
-                                    <span class="mx-2">•</span>
-                                    <i class="bi bi-geo-alt me-1"></i> ${job.loc}
-                                    <span class="mx-2">•</span>
-                                    <i class="bi bi-clock me-1"></i> ${job.type}
-                                </div>
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div class="d-flex gap-2">
-                                        ${job.tags.map(t => `<span class="badge bg-light text-dark border-0 rounded-pill px-3 py-2 small">${t}</span>`).join('')}
-                                    </div>
-                                    <button class="btn btn-primary rounded-pill px-4 fw-bold">Apply Now</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `).join('');
-    }
+    // Real data is loaded by handleJobSearch() via /api/search
+    // No mock data injected here — avoids flash of fake content
 }
 
 /* --- Core Functionality (Upload etc) --- */
@@ -693,14 +735,34 @@ async function loadResults() {
                             </div>
                         </div>
                         <div>
-                            <button class="btn btn-outline-primary btn-sm me-2" onclick="loadJobDetail(${index})">View Analysis</button>
+                            <button class="btn btn-outline-primary btn-sm me-2" onclick="loadJobDetail('${job.id}')">View Analysis</button>
                             <a href="${job.url}" target="_blank" class="btn btn-primary btn-sm">Apply</a>
                         </div>
                     </div>
                 `;
             });
             html += '</div></div>';
+        } else{
+            html += `
+                <div class="row justify-content-center">
+                    <div class="col-md-10">
+                        <div class="alert alert-warning border-0 shadow-sm rounded-4 p-4 d-flex align-items-start gap-3">
+                            <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+                            <div>
+                                <div class="fw-bold mb-1">No job matches yet</div>
+                                <div class="mb-3">
+                                    You need to scan your CV first to see job recommendations.
+                                </div>
+                                <a href="/upload_page" class="btn btn-primary btn-sm rounded-pill px-3">
+                                    <i class="bi bi-upload me-2"></i>Scan CV Now
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>  
+            `;
         }
+
 
         container.innerHTML = html;
 
@@ -804,55 +866,133 @@ async function loadSkills() {
     const container = document.getElementById('skillsList');
     if (!container) return;
 
+    container.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary"></div></div>';
+
     try {
         const response = await fetch('/user-skills');
         const skills = await response.json();
 
+        if (!skills || skills.length === 0) {
+            container.innerHTML = `
+                <div class="alert alert-warning border-0 shadow-sm rounded-4 d-flex align-items-start gap-3">
+                    <i class="bi bi-info-circle-fill fs-4"></i>
+                    <div>
+                        <div class="fw-bold mb-1">No skills detected yet</div>
+                        <div class="mb-2">Upload and scan your CV to extract your skill profile.</div>
+                        <a href="/upload_page" class="btn btn-primary btn-sm rounded-pill px-3">
+                            <i class="bi bi-upload me-1"></i>Scan CV
+                        </a>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+
+        const colors = ['primary', 'success', 'info', 'warning', 'danger'];
         let html = `
             <div class="d-flex justify-content-between align-items-center mb-4">
-                <h3 class="fw-bold mb-0">Extracted Skill Profile</h3>
-                <button class="btn btn-outline-secondary btn-sm" onclick="window.location.href='/upload_page'">
+                <h3 class="fw-bold mb-0">Extracted Skill Profile <span class="badge bg-primary rounded-pill ms-2">${skills.length}</span></h3>
+                <a href="/upload_page" class="btn btn-outline-secondary btn-sm">
                     <i class="bi bi-arrow-left me-2"></i>New CV
-                </button>
+                </a>
             </div>
-            <div class="d-flex flex-wrap gap-2 p-3 bg-light rounded">
+            <div class="row g-3">
         `;
-        skills.forEach(skill => {
-            const className = skill.is_core ? 'badge bg-primary' : 'badge bg-secondary';
-            html += `<span class="${className} p-2">${skill.name}</span>`;
-        });
-        html += '</div>';
 
+        skills.forEach((skill, i) => {
+            const pct = Math.round(skill.probability * 100);
+            const color = skill.is_core ? 'primary' : colors[i % colors.length];
+            const badge = skill.is_core
+                ? '<span class="badge bg-primary-subtle text-primary ms-2 small">CORE</span>'
+                : '';
+            html += `
+                <div class="col-md-6">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="fw-semibold small">${skill.name}${badge}</span>
+                        <span class="text-muted small">${pct}%</span>
+                    </div>
+                    <div class="progress" style="height: 6px;">
+                        <div class="progress-bar bg-${color}" style="width: ${pct}%"></div>
+                    </div>
+                </div>
+            `;
+        });
+
+        html += '</div>';
         container.innerHTML = html;
+
     } catch (error) {
+        container.innerHTML = `
+            <div class="alert alert-danger border-0 rounded-4">
+                <i class="bi bi-exclamation-triangle me-2"></i>Failed to load skills. Please try again.
+            </div>
+        `;
         console.error(error);
     }
 }
 
 async function loadStatistics() {
-    // Re-use logic or just leave blank for now as it triggers on tab click
     const container = document.getElementById('statisticsDiv');
+    if (!container) return;
+
+    container.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary"></div></div>';
+
     try {
         const response = await fetch('/statistics');
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.error || 'Failed to load statistics');
+        }
         const stats = await response.json();
         container.innerHTML = `
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h3 class="fw-bold mb-0">Database Statistics</h3>
-                <button class="btn btn-outline-secondary btn-sm" onclick="window.location.href='/upload_page'">
+                <a href="/upload_page" class="btn btn-outline-secondary btn-sm">
                     <i class="bi bi-arrow-left me-2"></i>New CV
-                </button>
+                </a>
             </div>
             <div class="row g-4">
-                <div class="col-md-3">
-                    <div class="card p-3 text-center border-0 shadow-sm">
+                <div class="col-md-3 col-6">
+                    <div class="card p-3 text-center border-0 shadow-sm rounded-4">
                         <div class="display-6 fw-bold text-primary">${stats.total_jobs}</div>
-                        <div class="small text-muted">Total Jobs</div>
+                        <div class="small text-muted mt-1">Total Jobs</div>
                     </div>
                 </div>
-                <!-- ... other stats ... -->
+                <div class="col-md-3 col-6">
+                    <div class="card p-3 text-center border-0 shadow-sm rounded-4">
+                        <div class="display-6 fw-bold text-success">${stats.user_skills}</div>
+                        <div class="small text-muted mt-1">Your Skills</div>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6">
+                    <div class="card p-3 text-center border-0 shadow-sm rounded-4">
+                        <div class="display-6 fw-bold text-warning">${stats.avg_job_skills}</div>
+                        <div class="small text-muted mt-1">Avg Skills/Job</div>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6">
+                    <div class="card p-3 text-center border-0 shadow-sm rounded-4">
+                        <div class="display-6 fw-bold text-info">${stats.median_job_skills}</div>
+                        <div class="small text-muted mt-1">Median Skills/Job</div>
+                    </div>
+                </div>
             </div>
         `;
-    } catch (e) { }
+    } catch (e) {
+        if (!container) return;
+        container.innerHTML = `
+            <div class="alert alert-warning border-0 shadow-sm rounded-4 d-flex align-items-start gap-3">
+                <i class="bi bi-info-circle-fill fs-4"></i>
+                <div>
+                    <div class="fw-bold mb-1">Scan your CV first</div>
+                    <div class="mb-2">${e.message || 'Upload and scan your CV to see personalized statistics.'}</div>
+                    <a href="/upload_page" class="btn btn-primary btn-sm rounded-pill px-3">
+                        <i class="bi bi-upload me-1"></i>Scan CV
+                    </a>
+                </div>
+            </div>
+        `;
+    }
 }
 
 function showToast(title, message, type = 'primary') {

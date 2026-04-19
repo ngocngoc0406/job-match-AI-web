@@ -1,11 +1,123 @@
 {
     "kanban": {
-        "saved": [],
+        "saved": [
+            {
+                "id": "kb_20260418025048",
+                "title": "AI",
+                "company": "tp",
+                "loc": "hcm",
+                "date": "Apr 18, 2026"
+            }
+        ],
         "applied": [],
         "interview": [],
         "offer": []
     },
     "activity": [
+        {
+            "type": "match",
+            "title": "Global Search",
+            "subtitle": "Found 500 jobs matching ''",
+            "time": "03:41 PM, Apr 18",
+            "icon": "bi-lightning-charge",
+            "color": "danger"
+        },
+        {
+            "type": "match",
+            "title": "Global Search",
+            "subtitle": "Found 500 jobs matching ''",
+            "time": "03:41 PM, Apr 18",
+            "icon": "bi-lightning-charge",
+            "color": "danger"
+        },
+        {
+            "type": "scan",
+            "title": "CV Analyzed",
+            "subtitle": "Extracted 4 skills from cv_1.pdf",
+            "time": "03:23 PM, Apr 18",
+            "icon": "bi-file-earmark-pdf",
+            "color": "info"
+        },
+        {
+            "type": "match",
+            "title": "Global Search",
+            "subtitle": "Found 500 jobs matching ''",
+            "time": "03:01 PM, Apr 18",
+            "icon": "bi-lightning-charge",
+            "color": "danger"
+        },
+        {
+            "type": "match",
+            "title": "Global Search",
+            "subtitle": "Found 500 jobs matching ''",
+            "time": "03:01 PM, Apr 18",
+            "icon": "bi-lightning-charge",
+            "color": "danger"
+        },
+        {
+            "type": "scan",
+            "title": "CV Analyzed",
+            "subtitle": "Extracted 4 skills from cv_1.pdf",
+            "time": "02:09 PM, Apr 18",
+            "icon": "bi-file-earmark-pdf",
+            "color": "info"
+        },
+        {
+            "type": "match",
+            "title": "Global Search",
+            "subtitle": "Found 500 jobs matching ''",
+            "time": "02:08 PM, Apr 18",
+            "icon": "bi-lightning-charge",
+            "color": "danger"
+        },
+        {
+            "type": "match",
+            "title": "Global Search",
+            "subtitle": "Found 500 jobs matching ''",
+            "time": "02:08 PM, Apr 18",
+            "icon": "bi-lightning-charge",
+            "color": "danger"
+        },
+        {
+            "type": "match",
+            "title": "Global Search",
+            "subtitle": "Found 500 jobs matching ''",
+            "time": "02:05 PM, Apr 18",
+            "icon": "bi-lightning-charge",
+            "color": "danger"
+        },
+        {
+            "type": "match",
+            "title": "Global Search",
+            "subtitle": "Found 500 jobs matching ''",
+            "time": "02:05 PM, Apr 18",
+            "icon": "bi-lightning-charge",
+            "color": "danger"
+        },
+        {
+            "type": "match",
+            "title": "Global Search",
+            "subtitle": "Found 500 jobs matching ''",
+            "time": "02:37 AM, Apr 18",
+            "icon": "bi-lightning-charge",
+            "color": "danger"
+        },
+        {
+            "type": "match",
+            "title": "Global Search",
+            "subtitle": "Found 500 jobs matching ''",
+            "time": "02:37 AM, Apr 18",
+            "icon": "bi-lightning-charge",
+            "color": "danger"
+        },
+        {
+            "type": "scan",
+            "title": "CV Analyzed",
+            "subtitle": "Extracted 4 skills from cv_1.pdf",
+            "time": "02:36 AM, Apr 18",
+            "icon": "bi-file-earmark-pdf",
+            "color": "info"
+        },
         {
             "type": "scan",
             "title": "CV Analyzed",
@@ -45,34 +157,15 @@
             "time": "12:50 PM, Apr 17",
             "icon": "bi-file-earmark-pdf",
             "color": "info"
-        },
-        {
-            "type": "scan",
-            "title": "CV Analyzed",
-            "subtitle": "Extracted 2 skills from cv mau.pdf",
-            "time": "12:45 PM, Apr 17",
-            "icon": "bi-file-earmark-pdf",
-            "color": "info"
-        },
-        {
-            "type": "scan",
-            "title": "CV Analyzed",
-            "subtitle": "Extracted 2 skills from cv mau.pdf",
-            "time": "12:33 PM, Apr 17",
-            "icon": "bi-file-earmark-pdf",
-            "color": "info"
-        },
-        {
-            "type": "system",
-            "title": "Welcome",
-            "subtitle": "Dashboard initialized",
-            "time": "Just now",
-            "icon": "bi-info-circle",
-            "color": "primary"
         }
     ],
     "stats": {
+<<<<<<< HEAD
         "scans": 5,
         "matches": 2
+=======
+        "scans": 7,
+        "matches": 10
+>>>>>>> a1d6b08a6f87dc62a80a079378933ae0146a8b57
     }
 }

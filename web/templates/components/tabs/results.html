@@ -17,34 +17,4 @@
             </a>
         </div>
     </div>
-    
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Auto-load results when tab becomes visible
-            const observer = new MutationObserver(function(mutations) {
-                mutations.forEach(function(mutation) {
-                    if (mutation.type === "attributes" && mutation.attributeName === "class") {
-                        const tabPane = mutation.target;
-                        if (tabPane.classList.contains("show") && tabPane.classList.contains("active")) {
-                            if (typeof loadResults === 'function') {
-                                loadResults();
-                            }
-                        }
-                    }
-                });
-            });
-            
-            const resultsTab = document.getElementById('results');
-            if (resultsTab) {
-                observer.observe(resultsTab, { attributes: true }); // Watch for class changes
-                
-                // Also check immediately if already active
-                if (resultsTab.classList.contains('show') && resultsTab.classList.contains('active')) {
-                    if (typeof loadResults === 'function') {
-                        loadResults();
-                    }
-                }
-            }
-        });
-    </script>
 </div>

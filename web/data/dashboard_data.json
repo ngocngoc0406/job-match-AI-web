@@ -10,6 +10,30 @@
             "type": "scan",
             "title": "CV Analyzed",
             "subtitle": "Extracted 2 skills from cv mau.pdf",
+            "time": "10:52 AM, Apr 19",
+            "icon": "bi-file-earmark-pdf",
+            "color": "info"
+        },
+        {
+            "type": "match",
+            "title": "Global Search",
+            "subtitle": "Found 500 jobs matching ''",
+            "time": "10:37 AM, Apr 19",
+            "icon": "bi-lightning-charge",
+            "color": "danger"
+        },
+        {
+            "type": "match",
+            "title": "Global Search",
+            "subtitle": "Found 500 jobs matching ''",
+            "time": "10:37 AM, Apr 19",
+            "icon": "bi-lightning-charge",
+            "color": "danger"
+        },
+        {
+            "type": "scan",
+            "title": "CV Analyzed",
+            "subtitle": "Extracted 2 skills from cv mau.pdf",
             "time": "01:25 PM, Apr 17",
             "icon": "bi-file-earmark-pdf",
             "color": "info"
@@ -48,7 +72,7 @@
         }
     ],
     "stats": {
-        "scans": 4,
-        "matches": 0
+        "scans": 5,
+        "matches": 2
     }
 }

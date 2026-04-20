@@ -17,11 +17,11 @@
                     </p>
                     <div class="d-flex gap-3">
                         <button class="btn btn-light btn-lg px-4 fw-bold text-primary shadow transition-hover"
-                            onclick="window.location.href = '{{ url_for("upload_page") }}';">
+                            onclick="window.location.href = '{{ url_for('upload_page') }}';">
                             <i class="bi bi-upload me-2"></i>Analyze CV
                         </button>
                         <button class="btn btn-outline-light btn-lg px-4 backdrop-blur"
-                            onclick="window.location.href = '{{ url_for("cv_builder") }}';">
+                            onclick="window.location.href = '{{ url_for('cv_builder') }}';">
                             <i class="bi bi-file-earmark-text me-2"></i>Build CV
                         </button>
                     </div>
@@ -252,7 +252,7 @@
         <h2 class="fw-bold mb-3">Ready to find your dream job?</h2>
         <p class="text-muted mb-4 lead">Join thousands of professionals who have advanced their careers with us.</p>
         <button class="btn btn-primary btn-lg rounded-pill px-5 shadow-sm hover-scale"
-            onclick="window.location.href = '{{ url_for("upload_page") }}';">
+            onclick="window.location.href = '{{ url_for('upload_page') }}';">
             Get Started Now <i class="bi bi-arrow-right ms-2"></i>
         </button>
     </div>

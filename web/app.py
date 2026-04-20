@@ -191,14 +191,22 @@ state = {
 DASHBOARD_DATA_FILE = os.path.join(os.path.dirname(__file__), 'data', 'dashboard_data.json')
 
 def load_dashboard_data():
-    if not os.path.exists(DASHBOARD_DATA_FILE):
+    try:
+        if not os.path.exists(DASHBOARD_DATA_FILE):
+            return {
+                "kanban": {"saved": [], "applied": [], "interview": [], "offer": []},
+                "activity": [],
+                "stats": {"scans": 0, "matches": 0}
+            }
+        with open(DASHBOARD_DATA_FILE, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"[ERROR] Failed to load dashboard data: {e}")
         return {
             "kanban": {"saved": [], "applied": [], "interview": [], "offer": []},
             "activity": [],
             "stats": {"scans": 0, "matches": 0}
         }
-    with open(DASHBOARD_DATA_FILE, 'r', encoding='utf-8') as f:
-        return json.load(f)
 
 def save_dashboard_data(data):
     os.makedirs(os.path.dirname(DASHBOARD_DATA_FILE), exist_ok=True)
@@ -426,7 +434,7 @@ def results():
         return jsonify([])
 
     results_data = []
-    for rank, (j, sc, ex) in enumerate(user_state['scores'][:TOPK_USER_JOB], start=1):
+    for rank, (j, sc, ex) in enumerate(user_state['scores'][:3], start=1):
         job_title = short_label(state['job_info'][j]['title'], 90)
         results_data.append({
             'rank': rank,
@@ -1395,6 +1403,9 @@ def salary_estimate():
 @app.route('/api/featured-jobs')
 def featured_jobs():
     """Get featured job opportunities for home page"""
+    if not state.get('is_ready'):
+        return jsonify({'jobs': [], 'initializing': True})
+        
     if state['df'] is None:
         return jsonify({'jobs': []})
     
@@ -1453,8 +1464,11 @@ def api_search():
     exp_levels = request.args.get('exp', '') # e.g. "intern,junior,senior,lead"
     job_types = request.args.get('type', '') # e.g. "full,part,remote"
     min_salary = int(request.args.get('min_salary', 0))
-    sort_by = request.args.get('sort', 'newest')  # newest, relevance, salary
+    sort_by = request.args.get('sort', 'newest')
     
+    if not state.get('is_ready'):
+        return jsonify({'jobs': [], 'has_more': False, 'total': 0, 'initializing': True})
+        
     if state['df'] is None:
         return jsonify({'jobs': [], 'has_more': False, 'total': 0})
 

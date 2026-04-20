@@ -1515,7 +1515,18 @@ async function handleJobSearch() {
     try {
         const url = `/api/search?q=${encodeURIComponent(query)}&city=${encodeURIComponent(city)}&offset=0&limit=${SEARCH_LIMIT}&exp=${expParam}&type=${typeParam}&min_salary=${minSalary}&sort=${currentSortOrder}`;
         const response = await fetch(url);
+        
+        if (!response.ok) {
+            throw new Error(`Server responded with ${response.status}`);
+        }
+        
         const data = await response.json();
+
+        if (data.initializing) {
+            resultsDiv.innerHTML = '<div class="col-12 text-center py-5 text-info"><div class="spinner-border spinner-border-sm me-2"></div><p class="mt-2">Search service is still initializing. Please wait...</p></div>';
+            setTimeout(handleJobSearch, 3000);
+            return;
+        }
 
         if (countSpan) countSpan.textContent = `(${data.total} results)`;
         resultsDiv.innerHTML = '';
@@ -1539,7 +1550,7 @@ async function handleJobSearch() {
 
     } catch (e) {
         console.error("Search error:", e);
-        resultsDiv.innerHTML = '<div class="col-12 text-center py-5 text-danger"><p>Error connecting to search service.</p></div>';
+        resultsDiv.innerHTML = `<div class="col-12 text-center py-5 text-danger"><p>Error connecting to search service.</p><small class="text-muted">${e.message}</small></div>`;
     }
 }
 

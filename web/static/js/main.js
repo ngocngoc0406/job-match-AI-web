@@ -251,11 +251,17 @@ async function renderDashboardSkills() {
     try {
         const response = await fetch('/user-skills');
         const skills = await response.json();
+        const normalizedSkills = Array.isArray(skills) ? skills.map(s => ({
+            name: s.name,
+            probability: Number(s.probability || 0),
+            is_core: Boolean(s.is_core),
+            tag: s.tag || ''
+        })) : [];
 
-        if (skills && skills.length > 0) {
+        if (normalizedSkills.length > 0) {
             // Take top 5 skills and format them
             const colors = ['primary', 'info', 'warning', 'success', 'danger'];
-            const topSkills = skills.slice(0, 5).map((s, i) => ({
+            const topSkills = normalizedSkills.slice(0, 5).map((s, i) => ({
                 name: s.name,
                 level: Math.round(s.probability * 100),
                 color: colors[i % colors.length]
@@ -807,6 +813,11 @@ async function loadSkills() {
     try {
         const response = await fetch('/user-skills');
         const skills = await response.json();
+        const normalizedSkills = Array.isArray(skills) ? skills.map(skill => ({
+            name: skill.name,
+            is_core: Boolean(skill.is_core),
+            tag: skill.tag || ''
+        })) : [];
 
         let html = `
             <div class="d-flex justify-content-between align-items-center mb-4">
@@ -817,9 +828,13 @@ async function loadSkills() {
             </div>
             <div class="d-flex flex-wrap gap-2 p-3 bg-light rounded">
         `;
-        skills.forEach(skill => {
+        if (!normalizedSkills.length) {
+            html += '<span class="text-muted">Upload CV để hệ thống phân tích kỹ năng.</span>';
+        }
+        normalizedSkills.forEach(skill => {
             const className = skill.is_core ? 'badge bg-primary' : 'badge bg-secondary';
-            html += `<span class="${className} p-2">${skill.name}</span>`;
+            const skillTag = skill.tag ? ` <small class="opacity-75">(${skill.tag})</small>` : '';
+            html += `<span class="${className} p-2">${skill.name}${skillTag}</span>`;
         });
         html += '</div>';
 

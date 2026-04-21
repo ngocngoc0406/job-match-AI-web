@@ -192,18 +192,6 @@ def add_kanban_item():
         return jsonify({'success': True, 'item': new_card})
     return jsonify({'error': 'Invalid status'}), 400
 
-@app.route('/user-skills')
-def get_user_skills():
-    if state.get('user_prob') is None:
-        return jsonify([])
-    # Return sorted skills
-    sorted_skills = sorted(
-        [{'name': k, 'probability': v} for k, v in state['user_prob'].items()],
-        key=lambda x: x['probability'],
-        reverse=True
-    )
-    return jsonify(sorted_skills)
-
 @app.route('/upload', methods=['POST'])
 def upload_files():
     """Handle file uploads"""
@@ -393,8 +381,11 @@ def job_detail(job_id):
         return jsonify({'error': str(e)}), 500
 
 @app.route('/user-skills')
-def user_skills():
+def get_user_skills_api():
     """Get detected user skills"""
+    if state.get('user_prob') is None:
+        return jsonify([])
+
     skills = []
     for k, v in sorted(state['user_prob'].items(), key=lambda x: x[1], reverse=True):
         core_tag = "CORE" if k in CORE_SKILLS_CANON else ""
@@ -1487,4 +1478,3 @@ def init_application():
 if __name__ == "__main__":
     init_application()
     app.run(host="127.0.0.1", port=5000, debug=True)
-

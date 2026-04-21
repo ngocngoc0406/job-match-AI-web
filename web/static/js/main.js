@@ -334,11 +334,17 @@ async function renderDashboardSkills() {
     try {
         const response = await fetch('/user-skills');
         const skills = await response.json();
+        const normalizedSkills = Array.isArray(skills) ? skills.map(s => ({
+            name: s.name,
+            probability: Number(s.probability || 0),
+            is_core: Boolean(s.is_core),
+            tag: s.tag || ''
+        })) : [];
 
-        if (skills && skills.length > 0) {
+        if (normalizedSkills.length > 0) {
             // Take top 5 skills and format them
             const colors = ['primary', 'info', 'warning', 'success', 'danger'];
-            const topSkills = skills.slice(0, 5).map((s, i) => ({
+            const topSkills = normalizedSkills.slice(0, 5).map((s, i) => ({
                 name: s.name,
                 level: Math.round(s.probability * 100),
                 color: colors[i % colors.length]
@@ -776,7 +782,7 @@ async function loadResults() {
             <i class="bi bi-exclamation-triangle-fill fs-4"></i>
             <div>
                 <div class="fw-bold">Scan Incomplete</div>
-                <div>${msg}</div>
+                <div>${escapeHtml(msg)}</div>
             </div>
         </div>`;
     }
@@ -802,9 +808,19 @@ function toggleCVText() {
 
 // Escape HTML to prevent XSS in CV text display
 function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+    const str = String(text ?? '');
+    return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function decodeHtmlEntities(text) {
+    const textarea = document.createElement('textarea');
+    textarea.innerHTML = text;
+    return textarea.value;
 }
 
 async function loadJobDetail(index) {
@@ -871,6 +887,11 @@ async function loadSkills() {
     try {
         const response = await fetch('/user-skills');
         const skills = await response.json();
+        const normalizedSkills = Array.isArray(skills) ? skills.map(skill => ({
+            name: skill.name,
+            is_core: Boolean(skill.is_core),
+            tag: skill.tag || ''
+        })) : [];
 
         if (!skills || skills.length === 0) {
             container.innerHTML = `
@@ -898,24 +919,9 @@ async function loadSkills() {
             </div>
             <div class="row g-3">
         `;
-
-        skills.forEach((skill, i) => {
-            const pct = Math.round(skill.probability * 100);
-            const color = skill.is_core ? 'primary' : colors[i % colors.length];
-            const badge = skill.is_core
-                ? '<span class="badge bg-primary-subtle text-primary ms-2 small">CORE</span>'
-                : '';
-            html += `
-                <div class="col-md-6">
-                    <div class="d-flex justify-content-between align-items-center mb-1">
-                        <span class="fw-semibold small">${skill.name}${badge}</span>
-                        <span class="text-muted small">${pct}%</span>
-                    </div>
-                    <div class="progress" style="height: 6px;">
-                        <div class="progress-bar bg-${color}" style="width: ${pct}%"></div>
-                    </div>
-                </div>
-            `;
+        skills.forEach(skill => {
+            const className = skill.is_core ? 'badge bg-primary' : 'badge bg-secondary';
+            html += `<span class="${className} p-2">${skill.name}</span>`;
         });
 
         html += '</div>';
@@ -999,10 +1005,18 @@ function showToast(title, message, type = 'primary') {
     const alertDiv = document.createElement('div');
     alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed top-0 end-0 m-3 shadow-lg`;
     alertDiv.style.zIndex = '9999';
-    alertDiv.innerHTML = `
-        <strong>${title}</strong> ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    `;
+
+    const strong = document.createElement('strong');
+    strong.textContent = title;
+    alertDiv.appendChild(strong);
+    alertDiv.appendChild(document.createTextNode(` ${message}`));
+
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'btn-close';
+    closeBtn.setAttribute('data-bs-dismiss', 'alert');
+    alertDiv.appendChild(closeBtn);
+
     document.body.appendChild(alertDiv);
 
     setTimeout(() => {
@@ -1018,6 +1032,28 @@ let interviewState = {
     questionCount: 0,
     detectedSkills: new Set()
 };
+
+function attachAnalysisToLatestUserTurn(analysis) {
+    if (!analysis) return;
+    for (let i = interviewState.history.length - 1; i >= 0; i--) {
+        const turn = interviewState.history[i];
+        if (turn && turn.role === 'user') {
+            turn.analysis = analysis;
+            return;
+        }
+    }
+}
+
+function normalizeInterviewHistory(history = []) {
+    return history.map(turn => {
+        if (!turn || typeof turn !== 'object') return turn;
+        const normalized = { ...turn };
+        if (normalized.role === 'user' && !Object.prototype.hasOwnProperty.call(normalized, 'analysis')) {
+            normalized.analysis = null;
+        }
+        return normalized;
+    });
+}
 
 async function startInterview() {
     // 1. Fetch user profile for context
@@ -1096,13 +1132,14 @@ async function startInterviewWithTopic(topicKey, topicPrompt) {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         message: topicPrompt,
-                        history: interviewState.history,
+                        history: normalizeInterviewHistory(interviewState.history),
                         topic_start: topicKey
                     })
                 });
                 const data = await response.json();
                 removeTypingIndicator(typingId);
                 if (data.reply) {
+                    attachAnalysisToLatestUserTurn(data.analysis);
                     addChatMessage('ai', data.reply);
                     interviewState.history.push({ role: 'ai', content: data.reply });
                     interviewState.questionCount++;
@@ -1150,15 +1187,16 @@ async function handleChatSubmit(e) {
         const response = await fetch('/interview/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: message, history: interviewState.history })
+            body: JSON.stringify({ message: message, history: normalizeInterviewHistory(interviewState.history) })
         });
 
         const data = await response.json();
         removeTypingIndicator(typingId);
 
         if (data.reply) {
+            attachAnalysisToLatestUserTurn(data.analysis);
             addChatMessage('ai', data.reply);
-            interviewState.history.push({ role: 'ai', content: data.reply, analysis: data.analysis });
+            interviewState.history.push({ role: 'ai', content: data.reply });
             
             // Update Live Skills in UI
             if (data.analysis && data.analysis.mentioned_skills) {
@@ -1186,20 +1224,41 @@ async function handleChatSubmit(e) {
 }
 
 function formatInterviewText(text) {
-    // Convert **bold** markdown to <strong> tags
-    return text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    // Escape first, then allow minimal markdown (**bold**) only
+    const escaped = escapeHtml(text);
+    return escaped.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+}
+
+function appendFormattedInterviewText(container, text) {
+    const formatted = formatInterviewText(text);
+    const parts = formatted.split(/(<strong>.*?<\/strong>)/g);
+
+    parts.forEach(part => {
+        if (!part) return;
+        const match = part.match(/^<strong>(.*?)<\/strong>$/);
+        if (match) {
+            const strong = document.createElement('strong');
+            strong.textContent = decodeHtmlEntities(match[1]);
+            container.appendChild(strong);
+        } else {
+            container.appendChild(document.createTextNode(decodeHtmlEntities(part)));
+        }
+    });
 }
 
 function addChatMessage(role, text) {
     const messagesDiv = document.getElementById('chat-messages');
     const bubble = document.createElement('div');
+    const textNode = document.createElement('span');
+    const metaNode = document.createElement('span');
     const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
     bubble.className = `chat-bubble ${role} d-flex flex-column`;
-    bubble.innerHTML = `
-        <span>${formatInterviewText(text)}</span>
-        <span class="meta">${timestamp}</span>
-    `;
+    appendFormattedInterviewText(textNode, text);
+    metaNode.className = 'meta';
+    metaNode.textContent = timestamp;
+    bubble.appendChild(textNode);
+    bubble.appendChild(metaNode);
 
     messagesDiv.appendChild(bubble);
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
@@ -1236,7 +1295,7 @@ async function endInterview() {
         const response = await fetch('/interview/summary', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ history: interviewState.history })
+            body: JSON.stringify({ history: normalizeInterviewHistory(interviewState.history) })
         });
         const summary = await response.json();
 
@@ -1254,9 +1313,13 @@ async function endInterview() {
         // 3. Render Strengths (Skills)
         const skillsContainer = document.getElementById('summary-skills');
         if (skillsContainer) {
-            skillsContainer.innerHTML = summary.detected_skills.map(s => 
-                `<span class="badge bg-primary bg-opacity-10 text-primary px-3 py-2 border border-primary border-opacity-25">${s}</span>`
-            ).join('');
+            skillsContainer.innerHTML = '';
+            (summary.detected_skills || []).forEach(s => {
+                const badge = document.createElement('span');
+                badge.className = 'badge bg-primary bg-opacity-10 text-primary px-3 py-2 border border-primary border-opacity-25';
+                badge.textContent = s;
+                skillsContainer.appendChild(badge);
+            });
         }
 
         // 4. Render Dimension Bars
@@ -1310,9 +1373,14 @@ function updateLiveSkillsUI() {
     if (!container || interviewState.detectedSkills.size === 0) return;
     
     card.style.display = 'block';
-    container.innerHTML = Array.from(interviewState.detectedSkills).map(skill => 
-        `<span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 animate__animated animate__bounceIn" style="font-size: 0.7rem;">${skill}</span>`
-    ).join('');
+    container.innerHTML = '';
+    Array.from(interviewState.detectedSkills).forEach(skill => {
+        const badge = document.createElement('span');
+        badge.className = 'badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 animate__animated animate__bounceIn';
+        badge.style.fontSize = '0.7rem';
+        badge.textContent = skill;
+        container.appendChild(badge);
+    });
 }
 
 

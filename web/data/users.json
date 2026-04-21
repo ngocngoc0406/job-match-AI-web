@@ -1,0 +1,6 @@
+{
+    "": {
+        "name": "User",
+        "password_hash": "scrypt:32768:8:1$vcn3atx0i8ieoXxP$563e650d5ae8ede0116a3944a95459b7a3f8a0a3fc0d0b78d848ea64983a56a3a4cd94dadab8e2d34b53367c4fa5e5b3e382330a70039addebf37c7f7156093d"
+    }
+}

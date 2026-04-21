@@ -714,7 +714,7 @@ async function loadResults() {
             <i class="bi bi-exclamation-triangle-fill fs-4"></i>
             <div>
                 <div class="fw-bold">Scan Incomplete</div>
-                <div>${msg}</div>
+                <div>${escapeHtml(msg)}</div>
             </div>
         </div>`;
     }
@@ -740,9 +740,19 @@ function toggleCVText() {
 
 // Escape HTML to prevent XSS in CV text display
 function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+    const str = String(text ?? '');
+    return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function decodeHtmlEntities(text) {
+    const textarea = document.createElement('textarea');
+    textarea.innerHTML = text;
+    return textarea.value;
 }
 
 async function loadJobDetail(index) {
@@ -859,10 +869,18 @@ function showToast(title, message, type = 'primary') {
     const alertDiv = document.createElement('div');
     alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed top-0 end-0 m-3 shadow-lg`;
     alertDiv.style.zIndex = '9999';
-    alertDiv.innerHTML = `
-        <strong>${title}</strong> ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    `;
+
+    const strong = document.createElement('strong');
+    strong.textContent = title;
+    alertDiv.appendChild(strong);
+    alertDiv.appendChild(document.createTextNode(` ${message}`));
+
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'btn-close';
+    closeBtn.setAttribute('data-bs-dismiss', 'alert');
+    alertDiv.appendChild(closeBtn);
+
     document.body.appendChild(alertDiv);
 
     setTimeout(() => {
@@ -1070,20 +1088,41 @@ async function handleChatSubmit(e) {
 }
 
 function formatInterviewText(text) {
-    // Convert **bold** markdown to <strong> tags
-    return text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    // Escape first, then allow minimal markdown (**bold**) only
+    const escaped = escapeHtml(text);
+    return escaped.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+}
+
+function appendFormattedInterviewText(container, text) {
+    const formatted = formatInterviewText(text);
+    const parts = formatted.split(/(<strong>.*?<\/strong>)/g);
+
+    parts.forEach(part => {
+        if (!part) return;
+        const match = part.match(/^<strong>(.*?)<\/strong>$/);
+        if (match) {
+            const strong = document.createElement('strong');
+            strong.textContent = decodeHtmlEntities(match[1]);
+            container.appendChild(strong);
+        } else {
+            container.appendChild(document.createTextNode(decodeHtmlEntities(part)));
+        }
+    });
 }
 
 function addChatMessage(role, text) {
     const messagesDiv = document.getElementById('chat-messages');
     const bubble = document.createElement('div');
+    const textNode = document.createElement('span');
+    const metaNode = document.createElement('span');
     const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
     bubble.className = `chat-bubble ${role} d-flex flex-column`;
-    bubble.innerHTML = `
-        <span>${formatInterviewText(text)}</span>
-        <span class="meta">${timestamp}</span>
-    `;
+    appendFormattedInterviewText(textNode, text);
+    metaNode.className = 'meta';
+    metaNode.textContent = timestamp;
+    bubble.appendChild(textNode);
+    bubble.appendChild(metaNode);
 
     messagesDiv.appendChild(bubble);
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
@@ -1138,9 +1177,13 @@ async function endInterview() {
         // 3. Render Strengths (Skills)
         const skillsContainer = document.getElementById('summary-skills');
         if (skillsContainer) {
-            skillsContainer.innerHTML = summary.detected_skills.map(s => 
-                `<span class="badge bg-primary bg-opacity-10 text-primary px-3 py-2 border border-primary border-opacity-25">${s}</span>`
-            ).join('');
+            skillsContainer.innerHTML = '';
+            (summary.detected_skills || []).forEach(s => {
+                const badge = document.createElement('span');
+                badge.className = 'badge bg-primary bg-opacity-10 text-primary px-3 py-2 border border-primary border-opacity-25';
+                badge.textContent = s;
+                skillsContainer.appendChild(badge);
+            });
         }
 
         // 4. Render Dimension Bars
@@ -1194,9 +1237,14 @@ function updateLiveSkillsUI() {
     if (!container || interviewState.detectedSkills.size === 0) return;
     
     card.style.display = 'block';
-    container.innerHTML = Array.from(interviewState.detectedSkills).map(skill => 
-        `<span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 animate__animated animate__bounceIn" style="font-size: 0.7rem;">${skill}</span>`
-    ).join('');
+    container.innerHTML = '';
+    Array.from(interviewState.detectedSkills).forEach(skill => {
+        const badge = document.createElement('span');
+        badge.className = 'badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 animate__animated animate__bounceIn';
+        badge.style.fontSize = '0.7rem';
+        badge.textContent = skill;
+        container.appendChild(badge);
+    });
 }
 
 

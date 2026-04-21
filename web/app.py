@@ -5,6 +5,7 @@ from flask import Flask, render_template, request, jsonify, send_file, session
 import os
 import re
 import json
+from time import perf_counter
 from werkzeug.utils import secure_filename
 import pandas as pd
 import numpy as np
@@ -859,8 +860,12 @@ QUESTION_ORDER = [
 @app.route('/interview/chat', methods=['POST'])
 def interview_chat():
     """Smart Bilingual AI Interview — analyzes user responses with NLP"""
+    request_started_at = perf_counter()
+
     user_state = get_user_state()
     if user_state.get('cv_text') is None:
+        latency_ms = (perf_counter() - request_started_at) * 1000
+        app.logger.info("[interview_chat] cv_missing latency_ms=%.2f", latency_ms)
         return jsonify({'reply': "I'm ready to interview you! Please upload your CV first so I can tailor the questions to your experience.\n\n(Tôi đã sẵn sàng phỏng vấn bạn! Vui lòng tải CV lên trước để tôi có thể điều chỉnh câu hỏi phù hợp với kinh nghiệm của bạn.)"})
 
     data = request.json
@@ -973,9 +978,15 @@ def interview_chat():
         
         reply = f"{ack_en}\n\n{q_en}\n\n({ack_vi}\n\n{q_vi})"
     
-    import time
-    time.sleep(0.6)
-    
+    latency_ms = (perf_counter() - request_started_at) * 1000
+    app.logger.info(
+        "[interview_chat] latency_ms=%.2f shallow=%s turn=%s topic_start=%s",
+        latency_ms,
+        is_shallow,
+        turn_count + 1,
+        topic_start
+    )
+
     return jsonify({
         'reply': reply,
         'turn': turn_count + 1,
